@@ -154,4 +154,3 @@ vLLM, checkpoint, driver, or CUDA revision.
 Repository-authored code is Apache-2.0. Third-party projects and model artifacts
 retain their own licenses. See [NOTICE](NOTICE) and
 [Model and artifact licenses](docs/licenses.md).
-

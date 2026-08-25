@@ -77,4 +77,3 @@ runtime workspaces       ~4 GiB
 The adapter itself was 8.3 MiB. Do not run two complete Qwen serving engines
 simultaneously merely to expose two behavioral modes; the duplicated weights,
 KV pools, and graphs erase the advantage of native LoRA.
-

@@ -10,4 +10,3 @@ RUN python3 /opt/qwen38/patch_vllm_dflash.py --site "${SITE}" \
 
 LABEL org.opencontainers.image.title="qwen38-vllm-dflash2-lab" \
       org.opencontainers.image.description="Pinned vLLM DFlash2 overlay for DGX Spark"
-

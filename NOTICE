@@ -20,4 +20,3 @@ requests #53292 and #53449. vLLM copyright and license notices remain with the
 base image and installed package.
 
 No third-party model weights or direction tensors are included here.
-

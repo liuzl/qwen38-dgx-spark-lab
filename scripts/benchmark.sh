@@ -37,4 +37,3 @@ bench "$base_model" 1 512 2048 1 base-c1.json
 bench "$adapter_model" 1 512 2048 1 adapter-c1.json
 bench "$base_model" 8 1024 256 32 base-c8.json
 bench "$adapter_model" 8 1024 256 32 adapter-c8.json
-

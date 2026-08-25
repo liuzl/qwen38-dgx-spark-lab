@@ -73,4 +73,3 @@ docker run -d \
     '{"method":"dflash","model":"/draft","num_speculative_tokens":7,"draft_tensor_parallel_size":1,"draft_sample_method":"probabilistic"}'
 
 echo "started $container on :$port"
-

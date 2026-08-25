@@ -21,4 +21,3 @@ tensor; responsibility for determining whether that output may be redistributed
 rests with the person generating it.
 
 This repository publishes neither generated adapters nor direction vectors.
-

@@ -58,4 +58,3 @@ Raw responses are intentionally not published. The aggregate result is under
   intervals.
 - An adapter that passes refusal testing still requires normal capability,
   agent/tool, and domain-specific evaluation for its intended use.
-
