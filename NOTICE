@@ -1,0 +1,23 @@
+Qwen3.8 on DGX Spark Lab
+Copyright 2026 Zhanliang Liu
+
+This repository contains original orchestration, conversion, validation, and
+documentation code licensed under Apache License 2.0.
+
+It interoperates with, but does not redistribute, the following projects and
+artifacts:
+
+- vLLM, Apache-2.0: https://github.com/vllm-project/vllm
+- DFlash, MIT: https://github.com/z-lab/dflash
+- Weschera DGX Spark Qwen3.8 recipe, MIT:
+  https://github.com/Weschera/Qwen3.8-27B-NVFP4-DFlash2-DGX-Spark
+- Qwen3.8-27B and RadixArk Qwen3.8-27B-NVFP4, Apache-2.0 model artifacts
+- Z Lab Qwen3.8-27B-DFlash2, separately distributed model artifact
+- pocharlies Qwen3.8 rank-1 refusal-projection research code, Apache-2.0
+
+The small vLLM patch overlay mirrors changes identified by upstream vLLM pull
+requests #53292 and #53449. vLLM copyright and license notices remain with the
+base image and installed package.
+
+No third-party model weights or direction tensors are included here.
+

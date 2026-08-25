@@ -209,6 +209,14 @@ tempCodeRunnerFile.py
 # PyPI configuration file
 .pypirc
 
+# Local model artifacts, caches, and benchmark raw data
+artifacts/
+models/
+cache/
+*.safetensors
+*.gguf
+benchmarks/raw/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

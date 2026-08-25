@@ -1,0 +1,24 @@
+name: lint
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: check
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: format --check
+      - name: Compile Python
+        run: python -m compileall -q scripts docker
+      - name: Parse shell scripts
+        run: bash -n scripts/*.sh

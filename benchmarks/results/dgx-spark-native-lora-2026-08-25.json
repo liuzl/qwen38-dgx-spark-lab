@@ -1,0 +1,65 @@
+{
+  "date": "2026-08-25",
+  "status": "experimental",
+  "hardware": {
+    "system": "NVIDIA DGX Spark",
+    "gpu": "GB10",
+    "cuda_arch": "sm_121",
+    "unified_memory_gib": 128
+  },
+  "software": {
+    "vllm_commit": "f94666b60d4c58ec0807d22c837cfae322a1dde9",
+    "cuda": "13.0",
+    "driver": "580.173.02"
+  },
+  "serving": {
+    "target": "RadixArk/Qwen3.8-27B-NVFP4",
+    "draft": "z-lab/Qwen3.8-27B-DFlash2",
+    "speculative_method": "dflash",
+    "draft_sample_method": "probabilistic",
+    "num_speculative_tokens": 7,
+    "max_model_len": 131072,
+    "kv_cache_dtype": "fp8_e4m3",
+    "kv_cache_gib": 16
+  },
+  "results": {
+    "clean_baseline": {
+      "c1_output_tokens_per_second": 45.17,
+      "c1_acceptance_length": 5.15,
+      "c8_output_tokens_per_second": 95.77
+    },
+    "native_lora_server_base": {
+      "c1_output_tokens_per_second": 45.405,
+      "c1_acceptance_length": 5.133,
+      "c1_median_ttft_ms": 382.55,
+      "c8_output_tokens_per_second": 93.165,
+      "c8_acceptance_length": 2.695,
+      "c8_median_ttft_ms": 830.44,
+      "failed_requests": 0
+    },
+    "native_lora_adapter": {
+      "c1_output_tokens_per_second": 31.919,
+      "c1_acceptance_length": 3.735,
+      "c1_median_ttft_ms": 404.96,
+      "c8_output_tokens_per_second": 100.515,
+      "c8_acceptance_length": 3.05,
+      "c8_median_ttft_ms": 953.53,
+      "failed_requests": 0
+    },
+    "strongreject_small_classifier": {
+      "prompts": 60,
+      "strict_refusals": 0,
+      "disclaimers_with_answer": 8,
+      "normal_answers": 52,
+      "empty": 0,
+      "errors": 0
+    },
+    "prefix_cache_hit_delta_tokens": {
+      "base_first": 0,
+      "base_second": 3296,
+      "adapter_first_after_base": 0,
+      "adapter_second": 3296
+    }
+  },
+  "raw_responses_published": false
+}
