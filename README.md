@@ -47,6 +47,10 @@ Additional gates:
   answer, 52 normal answers, zero empty responses or request errors.
 - With a 16 GiB FP8 KV cache, the Qwen vLLM process used about 46 GiB; the LoRA
   file itself was 8.3 MiB.
+- A controlled three-repeat head A/B found that the dense BF16 `lm_head` is not
+  a throughput upgrade for this vLLM + DFlash2 stack: base C1 fell from 53.277
+  to 22.854 tok/s and base C8 from 97.744 to 88.520 tok/s. The C1 regression
+  tracks DFlash2 acceptance length falling from 6.092 to 2.972.
 
 See [Benchmark methodology](docs/benchmarks.md) for the exact workload and
 interpretation.

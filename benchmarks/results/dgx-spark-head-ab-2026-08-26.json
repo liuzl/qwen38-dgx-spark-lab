@@ -1,0 +1,89 @@
+{
+  "date": "2026-08-26",
+  "status": "experimental",
+  "comparison": "packed NVFP4 lm_head vs dense BF16 lm_head",
+  "hardware": {
+    "system": "NVIDIA DGX Spark",
+    "gpu": "GB10",
+    "cuda_arch": "sm_121",
+    "unified_memory_gib": 128,
+    "driver": "580.173.02"
+  },
+  "software": {
+    "vllm_commit": "f94666b60d4c58ec0807d22c837cfae322a1dde9",
+    "image_id": "sha256:d29fe2ed2ce2e16b7988de33f7d23f317ef3443e9ccbf5c6e5be1006471563f5"
+  },
+  "checkpoints": {
+    "fp4_head": {
+      "model": "RadixArk/Qwen3.8-27B-NVFP4",
+      "revision": "319f741cce68d7914884900c138a1fbb70a42f30"
+    },
+    "bf16_head": {
+      "model": "RadixArk/Qwen3.8-27B-NVFP4-BF16-LMHead",
+      "revision": "009632fef96dd349150baa780c984e62e70e91fe"
+    },
+    "draft": "z-lab/Qwen3.8-27B-DFlash2"
+  },
+  "serving": {
+    "speculative_method": "dflash",
+    "draft_sample_method": "probabilistic",
+    "num_speculative_tokens": 7,
+    "max_model_len": 131072,
+    "kv_cache_dtype": "fp8_e4m3",
+    "kv_cache_gib": 16,
+    "thinking": false,
+    "temperature": 0
+  },
+  "method": {
+    "repetitions": 3,
+    "warmup_requests_per_arm": 2,
+    "c1": "one random request, 512 requested input tokens, 2048 output tokens",
+    "c8": "32 random requests, 1024 requested input tokens, 256 output tokens, concurrency 8",
+    "measured_requests": 396,
+    "failed_requests": 0
+  },
+  "results": {
+    "base_c1": {
+      "fp4_output_tok_s": [53.275, 53.221, 53.334],
+      "bf16_output_tok_s": [22.860, 22.855, 22.847],
+      "fp4_mean_tok_s": 53.277,
+      "bf16_mean_tok_s": 22.854,
+      "bf16_vs_fp4_percent": -57.10,
+      "fp4_acceptance_length_mean": 6.092,
+      "bf16_acceptance_length_mean": 2.972
+    },
+    "base_c8": {
+      "fp4_output_tok_s": [96.895, 96.745, 99.592],
+      "bf16_output_tok_s": [88.643, 85.901, 91.014],
+      "fp4_mean_tok_s": 97.744,
+      "bf16_mean_tok_s": 88.520,
+      "bf16_vs_fp4_percent": -9.44,
+      "fp4_acceptance_length_mean": 2.759,
+      "bf16_acceptance_length_mean": 2.713
+    },
+    "adapter_c1": {
+      "fp4_output_tok_s": [43.421, 41.316, 31.912],
+      "bf16_output_tok_s": [42.876, 42.934, 24.474],
+      "fp4_mean_tok_s": 38.883,
+      "bf16_mean_tok_s": 36.761,
+      "bf16_vs_fp4_percent": -5.46,
+      "fp4_sample_sd_tok_s": 6.128,
+      "bf16_sample_sd_tok_s": 10.641
+    },
+    "adapter_c8": {
+      "fp4_output_tok_s": [99.824, 95.493, 94.128],
+      "bf16_output_tok_s": [92.735, 92.463, 93.341],
+      "fp4_mean_tok_s": 96.482,
+      "bf16_mean_tok_s": 92.847,
+      "bf16_vs_fp4_percent": -3.77,
+      "fp4_acceptance_length_mean": 2.996,
+      "bf16_acceptance_length_mean": 3.092
+    }
+  },
+  "model_loading_memory_gib": {
+    "fp4_head": 23.77,
+    "bf16_head": 25.44,
+    "delta": 1.67
+  },
+  "raw_responses_published": false
+}

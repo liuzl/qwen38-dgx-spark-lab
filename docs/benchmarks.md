@@ -14,6 +14,44 @@
 Checkpoint repositories can change in place. Pin revisions and record hashes in
 your own run manifest.
 
+## Packed-FP4 head vs BF16 head A/B
+
+`scripts/benchmark-head-ab.sh` compares two checkpoints that have the same
+mixed-NVFP4 body and differ only in `lm_head`. It restarts the same container
+for each arm, performs the same two-request warmup, and runs the C1/C8 base and
+adapter workloads three times by default. The FP4 service is restored on exit.
+
+Set `FP4_MODEL_DIR`, `BF16_MODEL_DIR`, `DRAFT_DIR`, `ADAPTER_DIR`, and
+`CACHE_DIR`, plus the same optional serving overrides used by
+`serve-native-lora.sh`, then run:
+
+```bash
+scripts/benchmark-head-ab.sh
+```
+
+Results are written under
+`$CACHE_DIR/prob-k7-native-lora/head-ab-<UTC timestamp>/`. Every output file
+has an arm and repetition prefix, and the directory includes a run manifest
+and the resolved server command for each arm. Set `AB_REPEATS`, `AB_RUN_ID`, or
+`AB_RESULT_SUBDIR` to override those defaults.
+
+The 2026-08-26 run found that the BF16 head is not a throughput upgrade for
+this vLLM + DFlash2 stack:
+
+| Workload | FP4-head mean tok/s | BF16-head mean tok/s | Delta |
+|---|---:|---:|---:|
+| Base C1 | 53.277 | 22.854 | -57.10% |
+| Base C8 | 97.744 | 88.520 | -9.44% |
+| Adapter C1 | 38.883 | 36.761 | -5.46% |
+| Adapter C8 | 96.482 | 92.847 | -3.77% |
+
+Base C1 is the decisive regression: DFlash2 acceptance length fell from 6.092
+to 2.972 even though only the output head changed. Adapter C1 had high variance
+under both checkpoints, so its small mean delta is not binding. All 396
+measured requests succeeded. The BF16 arm used 1.67 GiB more model-loading
+memory. Sanitized repetitions and exact revisions are in
+`benchmarks/results/dgx-spark-head-ab-2026-08-26.json`.
+
 ## C1
 
 One random request, fixed 512-token requested input and 2,048 generated tokens,
