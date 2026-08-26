@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-26T10:06:40.408518+00:00",
+  "label": "dgx-spark-gb10-vllm-dflash2-k7",
+  "model": "qwen3.8-27b",
+  "endpoint": "/v1/chat/completions",
+  "protocol": {
+    "temperature": 0,
+    "max_tokens": 256,
+    "stream": true,
+    "thinking": false,
+    "response_text_stored": false,
+    "unique_prefix_per_request": true
+  },
+  "cases": [
+    {
+      "case": {
+        "name": "pp1k_tg256_c1",
+        "repeats": 19,
+        "concurrency": 1,
+        "requests": 1
+      },
+      "elapsed_s": 4.7702,
+      "aggregate_output_tok_s": 53.666,
+      "request_e2e_output_tok_s_mean": 53.6738,
+      "request_decode_tok_s_mean": 60.3788,
+      "ttft_s_mean": 0.5462,
+      "ttft_s_p95": 0.5462,
+      "latency_s_mean": 4.7696,
+      "latency_s_p95": 4.7696,
+      "requests": [
+        {
+          "request_index": 0,
+          "prompt_tokens": 1080,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 0.5462,
+          "total_s": 4.7696,
+          "e2e_output_tok_s": 53.6738,
+          "decode_tok_s": 60.3788,
+          "finish_reason": "length"
+        }
+      ],
+      "failures": []
+    },
+    {
+      "case": {
+        "name": "pp1k_tg256_c4",
+        "repeats": 19,
+        "concurrency": 4,
+        "requests": 8
+      },
+      "elapsed_s": 14.2517,
+      "aggregate_output_tok_s": 143.7024,
+      "request_e2e_output_tok_s_mean": 36.3905,
+      "request_decode_tok_s_mean": 47.4333,
+      "ttft_s_mean": 1.6589,
+      "ttft_s_p95": 2.0585,
+      "latency_s_mean": 7.0674,
+      "latency_s_p95": 7.6999,
+      "requests": [
+        {
+          "request_index": 0,
+          "prompt_tokens": 1080,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 2.0585,
+          "total_s": 7.5881,
+          "e2e_output_tok_s": 33.737,
+          "decode_tok_s": 46.1155,
+          "finish_reason": "length"
+        },
+        {
+          "request_index": 1,
+          "prompt_tokens": 1080,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 1.9213,
+          "total_s": 7.0011,
+          "e2e_output_tok_s": 36.5657,
+          "decode_tok_s": 50.1985,
+          "finish_reason": "length"
+        },
+        {
+          "request_index": 2,
+          "prompt_tokens": 1080,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 2.058,
+          "total_s": 7.5881,
+          "e2e_output_tok_s": 33.7368,
+          "decode_tok_s": 46.1108,
+          "finish_reason": "length"
+        },
+        {
+          "request_index": 3,
+          "prompt_tokens": 1080,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 2.0579,
+          "total_s": 7.6999,
+          "e2e_output_tok_s": 33.247,
+          "decode_tok_s": 45.1967,
+          "finish_reason": "length"
+        },
+        {
+          "request_index": 4,
+          "prompt_tokens": 1080,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 0.6985,
+          "total_s": 7.0176,
+          "e2e_output_tok_s": 36.4796,
+          "decode_tok_s": 40.354,
+          "finish_reason": "length"
+        },
+        {
+          "request_index": 5,
+          "prompt_tokens": 1080,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 1.4846,
+          "total_s": 6.6626,
+          "e2e_output_tok_s": 38.4232,
+          "decode_tok_s": 49.2466,
+          "finish_reason": "length"
+        },
+        {
+          "request_index": 6,
+          "prompt_tokens": 1080,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 1.4841,
+          "total_s": 6.6624,
+          "e2e_output_tok_s": 38.4244,
+          "decode_tok_s": 49.2439,
+          "finish_reason": "length"
+        },
+        {
+          "request_index": 7,
+          "prompt_tokens": 1080,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 1.5081,
+          "total_s": 6.3194,
+          "e2e_output_tok_s": 40.5101,
+          "decode_tok_s": 53.0002,
+          "finish_reason": "length"
+        }
+      ],
+      "failures": []
+    },
+    {
+      "case": {
+        "name": "pp16k_tg256_c1",
+        "repeats": 307,
+        "concurrency": 1,
+        "requests": 1
+      },
+      "elapsed_s": 5.4711,
+      "aggregate_output_tok_s": 46.7911,
+      "request_e2e_output_tok_s_mean": 46.8083,
+      "request_decode_tok_s_mean": 69.8344,
+      "ttft_s_mean": 1.8176,
+      "ttft_s_p95": 1.8176,
+      "latency_s_mean": 5.4691,
+      "latency_s_p95": 5.4691,
+      "requests": [
+        {
+          "request_index": 0,
+          "prompt_tokens": 16345,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 1.8176,
+          "total_s": 5.4691,
+          "e2e_output_tok_s": 46.8083,
+          "decode_tok_s": 69.8344,
+          "finish_reason": "length"
+        }
+      ],
+      "failures": []
+    }
+  ]
+}

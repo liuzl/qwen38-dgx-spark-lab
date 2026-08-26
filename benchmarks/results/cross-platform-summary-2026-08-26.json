@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-26T10:25:50.774538+00:00",
+  "reference_label": "dgx-spark-gb10-vllm-dflash2-k7",
+  "candidate_label": "apple-m3-max-64gb-omlx-0.6.3rc3-mtp",
+  "protocol": {
+    "temperature": 0,
+    "max_tokens": 256,
+    "stream": true,
+    "thinking": false,
+    "response_text_stored": false,
+    "unique_prefix_per_request": true
+  },
+  "comparisons": [
+    {
+      "case": "pp1k_tg256_c1",
+      "reference": {
+        "prompt_tokens": 1080,
+        "aggregate_output_tok_s": 53.666,
+        "request_decode_tok_s_mean": 60.3788,
+        "ttft_s_mean": 0.5462,
+        "latency_s_mean": 4.7696,
+        "failures": 0
+      },
+      "candidate": {
+        "prompt_tokens": 1080,
+        "aggregate_output_tok_s": 22.577,
+        "request_decode_tok_s_mean": 44.2355,
+        "ttft_s_mean": 5.5742,
+        "latency_s_mean": 11.3388,
+        "failures": 0
+      },
+      "candidate_vs_reference_percent": {
+        "aggregate_output_tok_s": -57.93,
+        "request_decode_tok_s_mean": -26.74,
+        "ttft_s_mean": 920.54,
+        "latency_s_mean": 137.73
+      }
+    },
+    {
+      "case": "pp1k_tg256_c4",
+      "reference": {
+        "prompt_tokens": 1080,
+        "aggregate_output_tok_s": 143.7024,
+        "request_decode_tok_s_mean": 47.4333,
+        "ttft_s_mean": 1.6589,
+        "latency_s_mean": 7.0674,
+        "failures": 0
+      },
+      "candidate": {
+        "prompt_tokens": 1080,
+        "aggregate_output_tok_s": 18.1915,
+        "request_decode_tok_s_mean": 7.5857,
+        "ttft_s_mean": 17.4801,
+        "latency_s_mean": 53.0688,
+        "failures": 0
+      },
+      "candidate_vs_reference_percent": {
+        "aggregate_output_tok_s": -87.34,
+        "request_decode_tok_s_mean": -84.01,
+        "ttft_s_mean": 953.72,
+        "latency_s_mean": 650.9
+      }
+    },
+    {
+      "case": "pp16k_tg256_c1",
+      "reference": {
+        "prompt_tokens": 16345,
+        "aggregate_output_tok_s": 46.7911,
+        "request_decode_tok_s_mean": 69.8344,
+        "ttft_s_mean": 1.8176,
+        "latency_s_mean": 5.4691,
+        "failures": 0
+      },
+      "candidate": {
+        "prompt_tokens": 16345,
+        "aggregate_output_tok_s": 1.4533,
+        "request_decode_tok_s_mean": 14.6513,
+        "ttft_s_mean": 158.7483,
+        "latency_s_mean": 176.153,
+        "failures": 0
+      },
+      "candidate_vs_reference_percent": {
+        "aggregate_output_tok_s": -96.89,
+        "request_decode_tok_s_mean": -79.02,
+        "ttft_s_mean": 8633.95,
+        "latency_s_mean": 3120.88
+      }
+    }
+  ]
+}

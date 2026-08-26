@@ -17,11 +17,10 @@ import urllib.request
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from html import escape
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
@@ -176,11 +175,11 @@ def service_card(
     )
     link_html = "".join(
         f'<a href="{escape(url, quote=True)}" target="_blank" rel="noreferrer">'
-        f'{escape(label)} <span>↗</span></a>'
+        f"{escape(label)} <span>↗</span></a>"
         for label, url in links
         if url
     )
-    endpoint_html = f'<code>{escape(endpoint)}</code>' if endpoint else ""
+    endpoint_html = f"<code>{escape(endpoint)}</code>" if endpoint else ""
     return f"""
     <article class="service-card">
       <div class="service-top">
@@ -208,13 +207,14 @@ def render_apps() -> bytes:
         "dgx": "http://127.0.0.1:11000/",
     }
     with ThreadPoolExecutor(max_workers=len(targets)) as executor:
-        checks = dict(zip(targets, executor.map(probe, targets.values())))
+        checks = dict(zip(targets, executor.map(probe, targets.values()), strict=False))
 
     qwen_models_url = f"{QWEN_API_URL.rstrip('/')}/v1/models" if QWEN_API_URL else ""
     cards = [
         service_card(
             "VoxStudio",
-            "Voice generation, transcription, local speech models and studio workflows.",
+            "Voice generation, transcription, local speech models and "
+            "studio workflows.",
             "PUBLIC + TAILNET",
             "V",
             [
@@ -335,9 +335,18 @@ class Monitor:
                     kv = MAX(samples.kv, excluded.kv),
                     running = MAX(samples.running, excluded.running),
                     waiting = MAX(samples.waiting, excluded.waiting),
-                    acceptance_length = COALESCE(excluded.acceptance_length, samples.acceptance_length),
-                    acceptance_rate = COALESCE(excluded.acceptance_rate, samples.acceptance_rate),
-                    prefix_hit_rate = COALESCE(excluded.prefix_hit_rate, samples.prefix_hit_rate),
+                    acceptance_length = COALESCE(
+                        excluded.acceptance_length,
+                        samples.acceptance_length
+                    ),
+                    acceptance_rate = COALESCE(
+                        excluded.acceptance_rate,
+                        samples.acceptance_rate
+                    ),
+                    prefix_hit_rate = COALESCE(
+                        excluded.prefix_hit_rate,
+                        samples.prefix_hit_rate
+                    ),
                     ttft_p95_ms = excluded.ttft_p95_ms,
                     tpot_p95_ms = excluded.tpot_p95_ms,
                     e2e_p95_ms = excluded.e2e_p95_ms
@@ -373,7 +382,9 @@ class Monitor:
             prompt=sum_metric(samples, "vllm:prompt_tokens_total"),
             drafts=sum_metric(samples, "vllm:spec_decode_num_drafts_total"),
             draft_tokens=sum_metric(samples, "vllm:spec_decode_num_draft_tokens_total"),
-            accepted_tokens=sum_metric(samples, "vllm:spec_decode_num_accepted_tokens_total"),
+            accepted_tokens=sum_metric(
+                samples, "vllm:spec_decode_num_accepted_tokens_total"
+            ),
             positions=position_metric(
                 samples, "vllm:spec_decode_num_accepted_tokens_per_pos_total"
             ),
@@ -386,8 +397,12 @@ class Monitor:
         generation_delta = delta(
             current.generation, self.previous.generation if self.previous else None
         )
-        prompt_delta = delta(current.prompt, self.previous.prompt if self.previous else None)
-        drafts_delta = delta(current.drafts, self.previous.drafts if self.previous else None)
+        prompt_delta = delta(
+            current.prompt, self.previous.prompt if self.previous else None
+        )
+        drafts_delta = delta(
+            current.drafts, self.previous.drafts if self.previous else None
+        )
         draft_tokens_delta = delta(
             current.draft_tokens, self.previous.draft_tokens if self.previous else None
         )
@@ -414,7 +429,9 @@ class Monitor:
             )
 
         acceptance_rate = (
-            accepted_delta / draft_tokens_delta * 100 if draft_tokens_delta > 0 else None
+            accepted_delta / draft_tokens_delta * 100
+            if draft_tokens_delta > 0
+            else None
         )
         acceptance_length = (
             1 + accepted_delta / drafts_delta if drafts_delta > 0 else None
@@ -451,7 +468,12 @@ class Monitor:
             "preemptions_total": int(sum_metric(samples, "vllm:num_preemptions_total")),
             "latency": {
                 "ttft_p95_ms": clean_number(
-                    (histogram_quantile(samples, "vllm:time_to_first_token_seconds", 0.95) or 0)
+                    (
+                        histogram_quantile(
+                            samples, "vllm:time_to_first_token_seconds", 0.95
+                        )
+                        or 0
+                    )
                     * 1000,
                     1,
                 ),
@@ -466,7 +488,12 @@ class Monitor:
                     1,
                 ),
                 "e2e_p95_ms": clean_number(
-                    (histogram_quantile(samples, "vllm:e2e_request_latency_seconds", 0.95) or 0)
+                    (
+                        histogram_quantile(
+                            samples, "vllm:e2e_request_latency_seconds", 0.95
+                        )
+                        or 0
+                    )
                     * 1000,
                     1,
                 ),
@@ -527,7 +554,7 @@ class Monitor:
             "tpot_p95_ms",
             "e2e_p95_ms",
         )
-        return [dict(zip(keys, row)) for row in rows]
+        return [dict(zip(keys, row, strict=False)) for row in rows]
 
 
 MONITOR: Monitor | None = None
@@ -595,7 +622,9 @@ class Handler(BaseHTTPRequestHandler):
         if file_path is None or not file_path.is_file():
             self._json({"error": "not found"}, 404)
             return
-        content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+        content_type = (
+            mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+        )
         if content_type.startswith("text/") or content_type == "application/javascript":
             content_type += "; charset=utf-8"
         self._send(200, content_type, file_path.read_bytes())

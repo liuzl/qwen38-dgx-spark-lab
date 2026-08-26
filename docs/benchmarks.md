@@ -1,5 +1,34 @@
 # Benchmark methodology
 
+## Cross-platform OpenAI protocol
+
+`scripts/benchmark-openai.py` provides a runtime-neutral qualification for
+OpenAI-compatible endpoints. It owns the prompt corpus, uses streaming usage
+instead of counting SSE events, warms the same prompt shape and concurrency,
+and stores no response text:
+
+```bash
+python3 scripts/benchmark-openai.py \
+  --base-url "$BASE_URL" \
+  --model "$MODEL_NAME" \
+  --label "$PLATFORM_LABEL" \
+  --output benchmarks/results/platform.json
+```
+
+Compare two outputs with:
+
+```bash
+python3 scripts/compare-platforms.py \
+  --reference benchmarks/results/reference.json \
+  --candidate benchmarks/results/candidate.json \
+  --output benchmarks/results/comparison.json
+```
+
+The 2026-08-26 DGX Spark/M3 Max run is documented in
+[Cross-platform comparison](cross-platform-comparison.md). The platform-neutral
+decode rate excludes TTFT; aggregate output throughput includes the complete
+concurrent request window.
+
 ## Environment
 
 - NVIDIA DGX Spark, GB10 `sm_121`, 128 GB unified memory

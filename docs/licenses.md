@@ -9,8 +9,11 @@ At the time of the reference run:
 |---|---|---:|
 | vLLM | Apache-2.0 | no; referenced as a base image |
 | z-lab/dflash code | MIT | no |
+| MLX / mlx-lm | MIT | no |
+| oMLX | Apache-2.0 | no |
 | Qwen/Qwen3.8-27B | Apache-2.0 | no |
 | RadixArk/Qwen3.8-27B-NVFP4 | Apache-2.0 | no |
+| Jundot/Qwen3.8-27B-oQ4e-mtp | Apache-2.0 | no |
 | z-lab Qwen3.8 DFlash2 checkpoint | model repository terms | no |
 | Ektome Qwen3.8 uncensored checkpoint | Apache-2.0 | no |
 | refusal direction tensor | artifact-specific terms | **no** |

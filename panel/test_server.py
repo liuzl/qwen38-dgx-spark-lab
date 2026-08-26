@@ -6,7 +6,6 @@ from pathlib import Path
 
 from panel import server
 
-
 FIXTURE = """
 # TYPE vllm:generation_tokens_total counter
 vllm:generation_tokens_total{model_name="qwen3.8-27b"} 120
@@ -23,7 +22,9 @@ vllm:spec_decode_num_accepted_tokens_per_pos_total{position="1"} 7
 class MetricsTests(unittest.TestCase):
     def test_parser_and_sum(self):
         samples = server.parse_prometheus(FIXTURE)
-        self.assertEqual(server.sum_metric(samples, "vllm:generation_tokens_total"), 120)
+        self.assertEqual(
+            server.sum_metric(samples, "vllm:generation_tokens_total"), 120
+        )
         self.assertEqual(server.sum_metric(samples, "vllm:num_requests_running"), 2)
 
     def test_histogram_quantile(self):

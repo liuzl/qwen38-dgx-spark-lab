@@ -1,7 +1,9 @@
-# Qwen3.8 on DGX Spark Lab
+# Qwen3.8 Local Inference Lab
 
-Reproducible serving recipes and measured experiments for running
-Qwen3.8-27B on an NVIDIA DGX Spark (GB10, `sm_121`).
+Reproducible serving recipes and measured experiments for Qwen3.8-27B on an
+NVIDIA DGX Spark (GB10, `sm_121`) and Apple Silicon. The Spark remains the
+reference serving track; the M3 Max track provides a controlled local-inference
+comparison using oMLX and Lightning MTP.
 
 The current reference stack serves two model IDs from one vLLM process:
 
@@ -16,11 +18,33 @@ regression caused by an always-on runtime projection hook.
 
 > [!WARNING]
 > This is an independent community experiment, not an official Qwen, NVIDIA,
-> vLLM, SGLang, RadixArk, or Z Lab project. It includes serving code and
-> aggregate benchmark results only—no model weights, draft weights, direction
-> tensors, credentials, or raw safety-evaluation responses.
+> Apple, MLX, oMLX, vLLM, SGLang, RadixArk, Jundot, or Z Lab project. It
+> includes serving code and aggregate benchmark results only—no model weights,
+> draft weights, direction tensors, credentials, or raw safety-evaluation
+> responses.
 
-## Measured result
+## Cross-platform result
+
+One client-owned prompt corpus was sent to both qualified stacks with the same
+temperature, output length, warmup shape, concurrency, and unique request
+prefixes:
+
+| Case | Metric | DGX Spark | M3 Max 64 GB |
+|---|---|---:|---:|
+| PP1080/TG256 C1 | decode tok/s | **60.38** | 44.24 |
+| PP1080/TG256 C4 | aggregate tok/s | **143.70** | 18.19 |
+| PP16345/TG256 C1 | decode tok/s | **69.83** | 14.65 |
+
+The M3 Max reaches 73% of Spark's short single-stream decode, but sustained long
+context and concurrency remain Spark strengths. Separately, oMLX prefix caching
+reduced a repeated 5.2K-prefix turn from 25.19 to 6.41 seconds on the M3 Max;
+that is a prefill/TTFT gain, not a decode-speed multiplier.
+
+See [DGX Spark vs Apple M3 Max](docs/cross-platform-comparison.md) for the
+protocol, raw artifacts, interpretation, and limits. Apple setup and the ANE
+memory boundary are in the [Apple Silicon track](docs/apple-silicon.md).
+
+## DGX Spark measured result
 
 Hardware: one DGX Spark GB10 with 128 GB unified memory. Target:
 `RadixArk/Qwen3.8-27B-NVFP4`; drafter: `z-lab/Qwen3.8-27B-DFlash2`;
@@ -59,14 +83,14 @@ interpretation.
 
 ```text
 docker/                  pinned vLLM overlay for DFlash2 fixes
-scripts/                 conversion, serving, API and cache validators
-configs/                 environment template
-docs/                    architecture, reproduction and license boundaries
+scripts/                 serving, conversion, validation and neutral benchmarks
+configs/                 DGX Spark and Apple Silicon environment templates
+docs/                    per-platform architecture, comparison and licenses
 benchmarks/results/      aggregate, sanitized machine-readable results
 panel/                    read-only single-Spark vLLM telemetry dashboard
 ```
 
-## Quick start
+## DGX Spark quick start
 
 ### 1. Prepare dependencies
 
@@ -140,6 +164,16 @@ python3 scripts/validate-cache-isolation.py \
 scripts/benchmark.sh
 ```
 
+For the M3 Max/oMLX path, use the
+[Apple Silicon runbook](docs/apple-silicon.md). To compare any two
+OpenAI-compatible endpoints with identical prompts, use:
+
+```bash
+python3 scripts/benchmark-openai.py \
+  --base-url "$BASE_URL" --model "$MODEL_NAME" \
+  --label "$PLATFORM_LABEL" --output benchmarks/results/platform.json
+```
+
 The optional [Spark LLM Panel](panel/README.md) shows live vLLM and DFlash2
 telemetry without Docker access or host-monitoring duplication. Hardware
 history and alerts remain in Beszel; benchmarks remain command-line only. See
@@ -149,17 +183,17 @@ Beszel, Qwen, LLM telemetry, and the DGX Dashboard.
 
 ## 中文摘要
 
-本项目集中整理 Qwen3.8-27B 在 DGX Spark 上的 vLLM、DFlash2 与原生
-rank-1 LoRA 部署方案。核心改进是把运行时 output projection 转换为标准 PEFT
-LoRA：普通请求完全绕过 adapter，恢复 clean base 性能；uncensored 请求使用同一
-服务中的独立 model alias。仓库仅发布脱敏代码、方法与聚合结果，不包含权重、方向
-tensor、内部机器信息或原始安全评测回答。
+本项目集中整理 Qwen3.8-27B 在 DGX Spark 与 Apple Silicon 上的可复现实验。Spark
+轨道覆盖 vLLM、DFlash2 与原生 rank-1 LoRA；M3 Max 轨道覆盖 oMLX、Lightning MTP、
+prefix cache 与 ANE 内存边界。同协议实测显示 M3 Max 的短单流 decode 达 Spark 的
+约 73%，但长上下文与并发仍明显落后。仓库仅发布脱敏代码、方法与聚合结果，不包含
+权重、方向 tensor、内部机器信息或原始安全评测回答。
 
 ## Status
 
-`v0.1` is an experimental single-machine reference. Before treating it as a
-production service, run a workload-specific soak test and validate every new
-vLLM, checkpoint, driver, or CUDA revision.
+`v0.2` is an experimental two-platform reference. Before treating either stack
+as a production service, run a workload-specific soak test and validate every
+new runtime, checkpoint, driver, CUDA, MLX, or operating-system revision.
 
 ## License and attribution
 
