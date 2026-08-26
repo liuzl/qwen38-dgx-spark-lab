@@ -1,0 +1,31 @@
+[Unit]
+Description=Read-only DGX Spark LLM telemetry panel
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=spark-llm-panel
+WorkingDirectory=/opt/spark-llm-panel
+EnvironmentFile=-/etc/default/spark-llm-panel
+Environment=PANEL_DB=/var/lib/spark-llm-panel/panel.db
+ExecStart=/usr/bin/python3 /opt/spark-llm-panel/server.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateDevices=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

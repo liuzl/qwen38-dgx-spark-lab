@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="Read-only serving telemetry for Qwen3.8 on DGX Spark.">
+    <title>Spark LLM Panel</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="mark" aria-hidden="true">S</div>
+          <div>
+            <p class="eyebrow">DGX SPARK · GB10</p>
+            <h1>Spark LLM</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <a id="beszel-link" class="quiet-link" href="#" target="_blank" rel="noreferrer">Hardware in Beszel ↗</a>
+          <div id="health-chip" class="health-chip waiting">
+            <span class="health-dot"></span>
+            <span id="health-label">Connecting</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p id="hero-title" class="section-label">LIVE DECODE</p>
+          <div class="hero-number"><span id="generation-rate">—</span><small>tok/s</small></div>
+          <p class="model-line"><span id="model-name">Waiting for vLLM</span><span class="separator">/</span><span id="last-update">—</span></p>
+        </div>
+        <div class="hero-chart">
+          <div class="chart-head">
+            <div>
+              <span class="chart-title">Generation throughput</span>
+              <span class="chart-subtitle">minute rollups</span>
+            </div>
+            <div class="range-switch" aria-label="History range">
+              <button type="button" data-hours="1">1H</button>
+              <button type="button" data-hours="24" class="active">24H</button>
+              <button type="button" data-hours="336">14D</button>
+            </div>
+          </div>
+          <canvas id="throughput-chart" aria-label="Generation throughput history"></canvas>
+          <div id="chart-empty" class="chart-empty">History begins with this deployment.</div>
+        </div>
+      </section>
+
+      <section class="metrics-grid" aria-label="Serving metrics">
+        <article class="metric-card accent-card">
+          <div class="metric-heading"><span>Prompt throughput</span><span class="metric-code">PREFILL</span></div>
+          <div class="metric-value"><span id="prompt-rate">—</span><small>tok/s</small></div>
+          <p>Uncached and cached prompt tokens reported by vLLM.</p>
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-heading"><span>Requests</span><span class="metric-code">QUEUE</span></div>
+          <div class="split-value">
+            <div><strong id="running-requests">—</strong><span>running</span></div>
+            <div><strong id="waiting-requests">—</strong><span>waiting</span></div>
+          </div>
+          <p>Scheduler pressure at the current instant.</p>
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-heading"><span>KV cache</span><span class="metric-code">FP8</span></div>
+          <div class="metric-value"><span id="kv-percent">—</span><small>%</small></div>
+          <div class="meter"><span id="kv-meter"></span></div>
+          <p>Usage of the fixed 16 GiB serving cache.</p>
+        </article>
+
+        <article class="metric-card">
+          <div class="metric-heading"><span>Prefix cache</span><span class="metric-code">HIT RATE</span></div>
+          <div class="metric-value"><span id="prefix-rate">—</span><small>%</small></div>
+          <div class="meter"><span id="prefix-meter"></span></div>
+          <p>Windowed rate; shown as idle when no new queries arrive.</p>
+        </article>
+      </section>
+
+      <section class="lower-grid">
+        <article class="panel spec-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-label">DFLASH2</p>
+              <h2>Draft acceptance</h2>
+            </div>
+            <div class="acceptance-summary">
+              <span><strong id="accept-length">—</strong> length</span>
+              <span><strong id="accept-rate">—</strong>% accepted</span>
+            </div>
+          </div>
+          <div id="position-bars" class="position-bars" aria-label="Per-position acceptance">
+            <div class="empty-copy">Acceptance appears while requests are decoding.</div>
+          </div>
+          <div class="rate-row">
+            <span>Accepted <strong id="accepted-rate">—</strong> tok/s</span>
+            <span>Drafted <strong id="drafted-rate">—</strong> tok/s</span>
+          </div>
+        </article>
+
+        <article class="panel latency-panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-label">LIFETIME DISTRIBUTION</p>
+              <h2>Latency p95</h2>
+            </div>
+          </div>
+          <div class="latency-list">
+            <div><span>Time to first token</span><strong><span id="ttft">—</span> ms</strong></div>
+            <div><span>Time per output token</span><strong><span id="tpot">—</span> ms</strong></div>
+            <div><span>End-to-end request</span><strong><span id="e2e">—</span> ms</strong></div>
+          </div>
+          <div class="preemption-row"><span>Preemptions since boot</span><strong id="preemptions">—</strong></div>
+        </article>
+      </section>
+
+      <footer>
+        <span>Read only · localhost telemetry · no Docker socket</span>
+        <span>Benchmarks remain CLI-only in <code>scripts/benchmark.sh</code></span>
+      </footer>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

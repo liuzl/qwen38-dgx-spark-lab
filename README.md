@@ -63,6 +63,7 @@ scripts/                 conversion, serving, API and cache validators
 configs/                 environment template
 docs/                    architecture, reproduction and license boundaries
 benchmarks/results/      aggregate, sanitized machine-readable results
+panel/                    read-only single-Spark vLLM telemetry dashboard
 ```
 
 ## Quick start
@@ -138,6 +139,12 @@ python3 scripts/validate-cache-isolation.py \
 
 scripts/benchmark.sh
 ```
+
+The optional [Spark LLM Panel](panel/README.md) shows live vLLM and DFlash2
+telemetry without Docker access or host-monitoring duplication. Hardware
+history and alerts remain in Beszel; benchmarks remain command-line only. See
+the [monitoring architecture](docs/monitoring.md) for the boundary and alert
+policy.
 
 ## 中文摘要
 
