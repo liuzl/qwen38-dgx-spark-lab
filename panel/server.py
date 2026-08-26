@@ -170,7 +170,7 @@ def service_card(
 ) -> str:
     status_html = "".join(
         f'<span class="status {"online" if online else "offline"}">'
-        f'<i></i>{escape(label)} · {escape(detail)}</span>'
+        f"<i></i>{escape(label)} · {escape(detail)}</span>"
         for label, online, detail in statuses
     )
     link_html = "".join(
