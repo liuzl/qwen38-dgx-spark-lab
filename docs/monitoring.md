@@ -58,6 +58,44 @@ updating it:
 - no benchmark trigger;
 - a single writable SQLite state directory.
 
+## Tailnet service directory
+
+The panel also renders a server-side service directory at `/apps`. Tailscale
+Serve attaches it to the Spark's standard HTTPS listener without changing the
+existing VoxStudio root route:
+
+| Route | Visibility | Service |
+|---|---|---|
+| `/` | Tailnet | VoxStudio |
+| `/apps` | Tailnet | Spark Hub directory |
+| `/livekit` | Tailnet | VoxStudio LiveKit dependency |
+| `:8443` | Tailnet | Qwen API |
+| `:8444` | Tailnet | Beszel |
+| `:8445` | Tailnet | Spark LLM Panel |
+| `:8446` | Tailnet | DGX Dashboard |
+
+The directory displays the public VoxStudio link separately from private
+services. It probes a fixed server-side allowlist when the page loads; it does
+not scan ports or accept a browser-provided target.
+
+## Public VoxStudio tunnel
+
+`voxstudio.cc` is the only public service in this architecture. Cloudflare
+Tunnel connects directly to the loopback VoxStudio listener; the Spark Hub,
+Beszel, Qwen API, LLM Panel, and DGX Dashboard are not Cloudflare ingress
+targets.
+
+If UDP/QUIC to the Cloudflare edge is unavailable but TCP port 7844 works, use
+a systemd drop-in rather than changing the remotely managed ingress:
+
+```ini
+[Service]
+Environment=TUNNEL_TRANSPORT_PROTOCOL=http2
+```
+
+This changes only the connector transport. The tunnel token, public hostname,
+and origin mapping remain managed outside the repository.
+
 ## Benchmarks are operational tools
 
 The dashboard is passive. Run load-generating measurements explicitly from the

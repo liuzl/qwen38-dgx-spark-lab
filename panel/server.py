@@ -11,11 +11,14 @@ import re
 import sqlite3
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +30,12 @@ PORT = int(os.environ.get("PANEL_PORT", "18103"))
 TARGET = os.environ.get("VLLM_BASE_URL", "http://127.0.0.1:18102").rstrip("/")
 DB_PATH = Path(os.environ.get("PANEL_DB", str(ROOT / "panel.db")))
 BESZEL_URL = os.environ.get("BESZEL_URL", "")
+BESZEL_PROBE_URL = os.environ.get("BESZEL_PROBE_URL", "")
+VOX_PUBLIC_URL = os.environ.get("VOX_PUBLIC_URL", "")
+VOX_TAILNET_URL = os.environ.get("VOX_TAILNET_URL", "")
+LLM_PANEL_URL = os.environ.get("LLM_PANEL_URL", "")
+QWEN_API_URL = os.environ.get("QWEN_API_URL", "")
+DGX_DASHBOARD_URL = os.environ.get("DGX_DASHBOARD_URL", "")
 POLL_SECONDS = max(1.0, float(os.environ.get("PANEL_POLL_SECONDS", "2")))
 HISTORY_DAYS = max(1, int(os.environ.get("PANEL_HISTORY_DAYS", "14")))
 
@@ -135,6 +144,121 @@ def clean_number(value: float | None, digits: int = 3) -> float | None:
     if value is None or not math.isfinite(value):
         return None
     return round(value, digits)
+
+
+def probe(url: str) -> tuple[bool, str]:
+    if not url:
+        return False, "Not configured"
+    try:
+        request = urllib.request.Request(url, headers={"User-Agent": "spark-hub/1"})
+        with urllib.request.urlopen(request, timeout=2) as response:
+            response.read(1)
+            return 200 <= response.status < 400, f"HTTP {response.status}"
+    except urllib.error.HTTPError as error:
+        return False, f"HTTP {error.code}"
+    except Exception:
+        return False, "Unreachable"
+
+
+def service_card(
+    name: str,
+    description: str,
+    badge: str,
+    monogram: str,
+    statuses: list[tuple[str, bool, str]],
+    links: list[tuple[str, str]],
+    endpoint: str = "",
+) -> str:
+    status_html = "".join(
+        f'<span class="status {"online" if online else "offline"}">'
+        f'<i></i>{escape(label)} · {escape(detail)}</span>'
+        for label, online, detail in statuses
+    )
+    link_html = "".join(
+        f'<a href="{escape(url, quote=True)}" target="_blank" rel="noreferrer">'
+        f'{escape(label)} <span>↗</span></a>'
+        for label, url in links
+        if url
+    )
+    endpoint_html = f'<code>{escape(endpoint)}</code>' if endpoint else ""
+    return f"""
+    <article class="service-card">
+      <div class="service-top">
+        <div class="service-icon">{escape(monogram)}</div>
+        <span class="access-badge">{escape(badge)}</span>
+      </div>
+      <div>
+        <h2>{escape(name)}</h2>
+        <p>{escape(description)}</p>
+      </div>
+      <div class="status-row">{status_html}</div>
+      {endpoint_html}
+      <div class="service-links">{link_html}</div>
+    </article>
+    """
+
+
+def render_apps() -> bytes:
+    targets = {
+        "vox_local": "http://127.0.0.1:8790/",
+        "vox_public": VOX_PUBLIC_URL,
+        "beszel": BESZEL_PROBE_URL,
+        "llm": f"http://{HOST}:{PORT}/healthz",
+        "qwen": "http://127.0.0.1:18102/health",
+        "dgx": "http://127.0.0.1:11000/",
+    }
+    with ThreadPoolExecutor(max_workers=len(targets)) as executor:
+        checks = dict(zip(targets, executor.map(probe, targets.values())))
+
+    qwen_models_url = f"{QWEN_API_URL.rstrip('/')}/v1/models" if QWEN_API_URL else ""
+    cards = [
+        service_card(
+            "VoxStudio",
+            "Voice generation, transcription, local speech models and studio workflows.",
+            "PUBLIC + TAILNET",
+            "V",
+            [
+                ("Public", *checks["vox_public"]),
+                ("Local", *checks["vox_local"]),
+            ],
+            [("Open public", VOX_PUBLIC_URL), ("Open via Tailnet", VOX_TAILNET_URL)],
+        ),
+        service_card(
+            "Beszel",
+            "Fleet, host, GPU, container history and operational alerts.",
+            "TAILNET ONLY",
+            "B",
+            [("Service", *checks["beszel"])],
+            [("Open dashboard", BESZEL_URL)],
+        ),
+        service_card(
+            "Spark LLM Panel",
+            "Live vLLM throughput, KV cache, queue, latency and DFlash2 acceptance.",
+            "TAILNET ONLY",
+            "L",
+            [("Service", *checks["llm"])],
+            [("Open telemetry", LLM_PANEL_URL)],
+        ),
+        service_card(
+            "Qwen API",
+            "OpenAI- and Anthropic-compatible endpoint for Qwen3.8-27B.",
+            "TAILNET ONLY",
+            "Q",
+            [("Endpoint", *checks["qwen"])],
+            [("Inspect models", qwen_models_url)],
+            endpoint=QWEN_API_URL,
+        ),
+        service_card(
+            "DGX Dashboard",
+            "NVIDIA's native system dashboard for this GB10 appliance.",
+            "TAILNET ONLY",
+            "D",
+            [("Service", *checks["dgx"])],
+            [("Open dashboard", DGX_DASHBOARD_URL)],
+        ),
+    ]
+    template = (STATIC / "apps.html").read_text()
+    return template.replace("{{SERVICE_CARDS}}", "".join(cards)).encode()
 
 
 @dataclass
@@ -440,6 +564,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path in {"/apps", "/apps/"}:
+            self._send(200, "text/html; charset=utf-8", render_apps())
+            return
         if parsed.path == "/api/snapshot":
             assert MONITOR is not None
             self._json(MONITOR.get_snapshot())

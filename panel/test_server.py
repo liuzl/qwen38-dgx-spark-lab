@@ -72,6 +72,19 @@ class MetricsTests(unittest.TestCase):
             rows = monitor.get_history(24 * 365 * 10)
             self.assertEqual(rows[0]["generation"], 12.0)
 
+    def test_service_card_escapes_dynamic_content(self):
+        card = server.service_card(
+            "Unsafe <name>",
+            "Description & detail",
+            "TAILNET ONLY",
+            "X",
+            [("Service", True, "HTTP 200")],
+            [("Open", "https://example.com/?a=1&b=2")],
+        )
+        self.assertIn("Unsafe &lt;name&gt;", card)
+        self.assertIn("Description &amp; detail", card)
+        self.assertIn("a=1&amp;b=2", card)
+
 
 if __name__ == "__main__":
     unittest.main()

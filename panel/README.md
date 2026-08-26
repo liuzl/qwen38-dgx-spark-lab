@@ -17,6 +17,13 @@ mounts, power controls, or benchmark trigger. Hardware history and alerts stay
 in Beszel. Load-generating benchmarks stay in `scripts/benchmark.sh` and
 `scripts/benchmark-head-ab.sh`.
 
+`/apps` is a server-rendered Tailnet-only directory for the Spark's public and
+private web services. It probes only a fixed server-side allowlist and never
+accepts a browser-supplied target.
+
+The deployed directory keeps VoxStudio's public Cloudflare hostname distinct
+from every Tailnet-only management and inference endpoint.
+
 ## Metrics
 
 - live prompt and generation token rates;
@@ -52,6 +59,12 @@ Then open `http://127.0.0.1:18103`.
 | `PANEL_POLL_SECONDS` | `2` | Live sampling interval |
 | `PANEL_HISTORY_DAYS` | `14` | Minute-history retention |
 | `BESZEL_URL` | unset | Hardware-dashboard link |
+| `BESZEL_PROBE_URL` | unset | Server-side Beszel health target |
+| `VOX_PUBLIC_URL` | unset | Public VoxStudio link and health target |
+| `VOX_TAILNET_URL` | unset | Private VoxStudio link |
+| `LLM_PANEL_URL` | unset | Private telemetry-panel link |
+| `QWEN_API_URL` | unset | Private OpenAI-compatible base URL |
+| `DGX_DASHBOARD_URL` | unset | Private NVIDIA dashboard link |
 
 The provided systemd unit runs as a dynamic unprivileged user with a read-only
 system view and a single writable state directory.

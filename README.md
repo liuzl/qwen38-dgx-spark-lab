@@ -144,7 +144,8 @@ The optional [Spark LLM Panel](panel/README.md) shows live vLLM and DFlash2
 telemetry without Docker access or host-monitoring duplication. Hardware
 history and alerts remain in Beszel; benchmarks remain command-line only. See
 the [monitoring architecture](docs/monitoring.md) for the boundary and alert
-policy.
+policy. Its `/apps` view is the private service directory for VoxStudio,
+Beszel, Qwen, LLM telemetry, and the DGX Dashboard.
 
 ## 中文摘要
 
