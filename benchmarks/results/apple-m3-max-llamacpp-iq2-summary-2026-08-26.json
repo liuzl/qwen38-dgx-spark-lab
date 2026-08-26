@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-26T11:51:48Z",
+  "hardware": "Apple M3 Max 64 GB",
+  "model": {
+    "repository": "JonathanColetti/Qwen3.8-27B-Uncensored-GGUF",
+    "revision": "b7ff25715ee2ae49c9ff32159bc73de864648aef",
+    "file": "Qwen3.8-27B-Uncensored-IQ2_M.gguf",
+    "size_bytes": 10624771968,
+    "sha256": "28e0f88eea09438220a086c2a1e5180ad83764c748856a28fd63ce1c0fbef187"
+  },
+  "llama_cpp": {
+    "revision": "fc35562ba46fbbf8e30cac85edbb39642c37d248",
+    "backend": "Metal",
+    "flash_attention": true,
+    "kv_cache": "q8_0",
+    "context_tokens_total": 73728,
+    "parallel_slots": 4,
+    "context_tokens_per_slot": 18432
+  },
+  "greedy_canaries": {
+    "cases": [
+      "code",
+      "chinese_reasoning",
+      "multilingual",
+      "structured"
+    ],
+    "mtp_depths_compared": [
+      1,
+      2,
+      3
+    ],
+    "all_exact_match_to_ar": true
+  },
+  "single_stream_sweep": [
+    {
+      "mode": "ar",
+      "decode_tok_s": 11.7135,
+      "ttft_s": 8.1844
+    },
+    {
+      "mode": "mtp",
+      "depth": 1,
+      "decode_tok_s": 16.2264,
+      "ttft_s": 7.7265,
+      "draft_tokens": 127,
+      "accepted_tokens": 127
+    },
+    {
+      "mode": "mtp",
+      "depth": 2,
+      "decode_tok_s": 18.2839,
+      "ttft_s": 6.6333,
+      "draft_tokens": 170,
+      "accepted_tokens": 170
+    },
+    {
+      "mode": "mtp",
+      "depth": 3,
+      "decode_tok_s": 19.8966,
+      "ttft_s": 6.6087,
+      "draft_tokens": 191,
+      "accepted_tokens": 191
+    }
+  ],
+  "selected_depth_3": {
+    "pp1k_tg256_c4": {
+      "aggregate_output_tok_s": 10.0117,
+      "request_decode_tok_s_mean": 4.1604,
+      "ttft_s_mean": 37.5957
+    },
+    "pp16k_tg256_c1": {
+      "aggregate_output_tok_s": 1.2021,
+      "request_decode_tok_s_mean": 6.6474,
+      "ttft_s_mean": 174.6079,
+      "draft_tokens": 243,
+      "accepted_tokens": 173
+    }
+  },
+  "controls_and_exclusions": {
+    "ar_pp16k_tg256_c1": "invalid: the first AR server allocated 16384 tokens per slot, so the 16345-token prompt produced only 39 completion tokens",
+    "mtp_depth_3_full_pp1k_tg256_c1": "excluded from the primary C1 comparison because the preceding depth-3 sweep left an identical prompt in the same process cache",
+    "mtp_depths_4_to_8": "not run: the result could not change the daily-runtime decision after depth 3 remained below half of the qualified oMLX 4-bit decode rate"
+  },
+  "reference_omlx_4bit": {
+    "model": "Jundot/Qwen3.8-27B-oQ4e-mtp",
+    "pp1k_tg256_c1_decode_tok_s": 44.2355,
+    "pp1k_tg256_c4_aggregate_output_tok_s": 18.1915,
+    "pp16k_tg256_c1_decode_tok_s": 14.6513
+  },
+  "ollama": {
+    "version": "0.33.0",
+    "result": "import stopped before benchmark",
+    "reason": "the isolated import store reached 20 GB while copying and parsing the 10.6 GB GGUF, reducing free disk from 39 GiB to 19 GiB",
+    "cleanup": "the isolated import store was removed and free disk returned to 39 GiB; the verified source GGUF was retained",
+    "next_step": "after freeing disk, qualify Ollama's native MLX path separately instead of assuming an imported GGUF inherits the same acceleration"
+  },
+  "decision": "Keep IQ2_M plus llama.cpp as a compact portability and fallback experiment. Keep oMLX 4-bit as the daily Apple Silicon runtime. Do not duplicate this GGUF into Ollama on the current low-free-space machine."
+}

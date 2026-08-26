@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "left_label": "apple-m3-max-llamacpp-iq2-ar",
+  "right_label": "apple-m3-max-llamacpp-iq2-mtp-d3",
+  "all_exact_match": true,
+  "canaries": [
+    {
+      "name": "code",
+      "exact_match": true,
+      "left_sha256": "ae5da643c880e4c7a86df13f91db07d8942ba01921a5912fe8e0836c8c43bf69",
+      "right_sha256": "ae5da643c880e4c7a86df13f91db07d8942ba01921a5912fe8e0836c8c43bf69",
+      "left_chars": 540,
+      "right_chars": 540,
+      "first_difference_char": null
+    },
+    {
+      "name": "chinese_reasoning",
+      "exact_match": true,
+      "left_sha256": "fbbe79fff772ee74a6419d50bd5295a95b43a3a5f8d3fe0f64222237593506ac",
+      "right_sha256": "fbbe79fff772ee74a6419d50bd5295a95b43a3a5f8d3fe0f64222237593506ac",
+      "left_chars": 436,
+      "right_chars": 436,
+      "first_difference_char": null
+    },
+    {
+      "name": "multilingual",
+      "exact_match": true,
+      "left_sha256": "18d79e5150d01333f5d30aa15b90fec90b835fed11eb061fd0627f42067f335c",
+      "right_sha256": "18d79e5150d01333f5d30aa15b90fec90b835fed11eb061fd0627f42067f335c",
+      "left_chars": 40,
+      "right_chars": 40,
+      "first_difference_char": null
+    },
+    {
+      "name": "structured",
+      "exact_match": true,
+      "left_sha256": "6e019d1c9130047e416eafba8c7f2976963bc4f817ca8cb1c54bbc317ad7a519",
+      "right_sha256": "6e019d1c9130047e416eafba8c7f2976963bc4f817ca8cb1c54bbc317ad7a519",
+      "left_chars": 69,
+      "right_chars": 69,
+      "first_difference_char": null
+    }
+  ]
+}

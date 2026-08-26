@@ -138,3 +138,88 @@ it does not store response text, the endpoint URL, or credentials.
 
 See [Cross-platform comparison](cross-platform-comparison.md) for the matched
 DGX Spark result.
+
+## Experimental 2-bit GGUF track
+
+An additional experiment qualified the fused-MTP
+`JonathanColetti/Qwen3.8-27B-Uncensored-IQ2_M.gguf` with a pinned llama.cpp
+Metal build. The 10,624,771,968-byte file was pinned to repository revision
+`b7ff25715ee2ae49c9ff32159bc73de864648aef` and verified with SHA-256
+`28e0f88eea09438220a086c2a1e5180ad83764c748856a28fd63ce1c0fbef187`.
+llama.cpp was pinned to `fc35562ba46fbbf8e30cac85edbb39642c37d248`.
+
+The controlled single-stream sweep used Metal, Flash Attention, q8_0 KV,
+18,432 tokens per slot, temperature zero, and the same PP1K/TG256 client
+corpus:
+
+| Mode | MTP depth | Decode tok/s | TTFT | Change vs AR |
+|---|---:|---:|---:|---:|
+| llama.cpp AR | - | 11.71 | 8.18 s | - |
+| llama.cpp MTP | 1 | 16.23 | 7.73 s | +38.5% |
+| llama.cpp MTP | 2 | 18.28 | 6.63 s | +56.1% |
+| llama.cpp MTP | 3 | 19.90 | 6.61 s | +69.9% |
+| oMLX 4-bit reference | runtime-selected | 44.24 | 5.57 s | +277.7% vs AR |
+
+All four benign greedy canaries (code, Chinese arithmetic, multilingual, and
+structured output) matched the AR text exactly at MTP depths 1, 2, and 3.
+This is a narrow correctness gate, not a general quality evaluation.
+
+Depth 3 did not scale as strongly outside short single-stream decode:
+
+| Case | Metric | llama.cpp AR | llama.cpp MTP depth 3 | oMLX 4-bit |
+|---|---|---:|---:|---:|
+| PP1K/TG256 C4 | aggregate tok/s | 9.13 | 10.01 | 18.19 |
+| PP16K/TG256 C1 | decode tok/s | invalid | 6.65 | 14.65 |
+| PP16K/TG256 C1 | MTP acceptance | - | 173 / 243 (71.2%) | not comparable |
+
+The AR 16K row is invalid because the first server allocated only 16,384
+tokens per slot: a 16,345-token prompt left room for 39 output tokens, not the
+required 256. It must not be used as a long-context AR comparison. A later
+depth-3 full run also reused the preceding C1 sweep's identical prompt cache;
+its C1 TTFT and end-to-end rate are retained in the raw result but excluded
+from the primary single-stream table. The independent depth-3 sweep supplies
+the reported 19.90 tok/s result.
+
+Depths 4 through 8 were stopped once the decision boundary was clear. Depth 3
+remained below half of the qualified oMLX 4-bit decode rate, so a deeper sweep
+could tune the experimental llama.cpp route but could not make it the daily
+runtime recommendation. IQ2_M remains useful when compact storage, GGUF
+portability, or a llama.cpp fallback matters; it is not the preferred quality
+or performance configuration on this 64 GB M3 Max.
+
+Ollama 0.33.0 was tested only through the local import stage. Its isolated
+content store reached 20 GB while copying and parsing the 10.6 GB GGUF, which
+reduced free disk from 39 GiB to 19 GiB. The import and benchmark were stopped,
+the isolated store was removed, and free space returned to 39 GiB. This is a
+peak import-space observation, not a steady-state model-size measurement.
+Revisit Ollama after freeing at least 25 GiB of additional headroom or after a
+verified zero-copy import path is available. Prefer qualifying Ollama's native
+MLX model path over duplicating this GGUF when the experiment is resumed.
+
+### External cross-check
+
+An X search on 2026-08-26 found directional agreement, but no public result
+with this exact IQ2_M file, M3 Max 64 GB, llama.cpp revision, and client corpus:
+
+- a controlled dynamic 6-bit Apple Silicon comparison found that the best MTP
+  depth changed by machine: depth 1 on M4 Max and depth 3 on M5 Max, with deeper
+  settings losing performance. This supports treating depth as a measured
+  runtime parameter rather than a universal constant ([post and chart](https://x.com/StefanoGogioso/status/2092557016308850840));
+- a 24 GB M4 mini report measured a 2-bit Qwen3.8-27B at 7.4 tok/s with 64K
+  context and described it as possible but painful
+  ([post](https://x.com/WescheNex1q/status/2091293504089588181));
+- a community deployment article recommended Q4 as the balance point and
+  reported lower completion on long agent tasks for 2-bit. Much of its Mac
+  table is explicitly estimated or attributed to external reports, so it is
+  supporting context rather than controlled evidence
+  ([article](https://x.com/servasyy_ai/status/2091416214283379123));
+- an M4 Pro 64 GB user reported 17-26 tok/s for an Ollama Qwen3.8 4-bit MLX
+  model and 28.41 tok/s for a direct MLX+DFlash path. The protocols differ, but
+  the result supports testing native MLX and imported GGUF as separate runtime
+  tracks ([post](https://x.com/aaronedell/status/2092035159667442137)).
+
+These observations were not mixed into the tables above. The local controlled
+run remains the source of record for this hardware and checkpoint.
+
+The consolidated evidence and exclusions are recorded in
+[`apple-m3-max-llamacpp-iq2-summary-2026-08-26.json`](../benchmarks/results/apple-m3-max-llamacpp-iq2-summary-2026-08-26.json).

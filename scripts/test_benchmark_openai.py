@@ -53,6 +53,10 @@ class BenchmarkOpenAITest(unittest.TestCase):
                     "completion_tokens": 8,
                     "prompt_tokens_details": {"cached_tokens": 0},
                 },
+                "timings": {
+                    "draft_n": 10,
+                    "draft_n_accepted": 8,
+                },
             },
         ]
         lines = [f"data: {json.dumps(chunk)}\n".encode() for chunk in chunks]
@@ -75,6 +79,7 @@ class BenchmarkOpenAITest(unittest.TestCase):
         self.assertEqual(result["finish_reason"], "length")
         self.assertEqual(result["ttft_s"], 0.5)
         self.assertEqual(result["total_s"], 2.0)
+        self.assertEqual(result["runtime_timings"]["draft_n_accepted"], 8)
         self.assertNotIn("content", result)
 
 

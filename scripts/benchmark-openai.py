@@ -103,6 +103,7 @@ def stream_request(
     started = time.perf_counter()
     first_token_at: float | None = None
     usage: dict[str, Any] = {}
+    timings: dict[str, Any] = {}
     finish_reason: str | None = None
     with urllib_request.urlopen(request, timeout=timeout) as response:
         for raw_line in response:
@@ -117,6 +118,8 @@ def stream_request(
             chunk = json.loads(data)
             if chunk.get("usage"):
                 usage = chunk["usage"]
+            if chunk.get("timings"):
+                timings = chunk["timings"]
             for choice in chunk.get("choices") or []:
                 delta = choice.get("delta") or {}
                 if first_token_at is None and any(
@@ -148,6 +151,7 @@ def stream_request(
         if decode_s and decode_tokens
         else None,
         "finish_reason": finish_reason,
+        "runtime_timings": timings or None,
     }
 
 
@@ -243,12 +247,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-tokens", type=int, default=256)
     parser.add_argument("--timeout", type=float, default=900)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--case",
+        action="append",
+        choices=[case.name for case in DEFAULT_CASES],
+        help="run only the named case; repeat to select multiple cases",
+    )
     parser.add_argument("--quiet", action="store_true")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    cases = (
+        [case for case in DEFAULT_CASES if case.name in args.case]
+        if args.case
+        else DEFAULT_CASES
+    )
     result = {
         "schema_version": 1,
         "created_at": datetime.now(UTC).isoformat(),
@@ -263,7 +278,7 @@ def main() -> None:
             "response_text_stored": False,
             "unique_prefix_per_request": True,
         },
-        "cases": [run_case(args, case) for case in DEFAULT_CASES],
+        "cases": [run_case(args, case) for case in cases],
     }
     rendered = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
     if args.output:

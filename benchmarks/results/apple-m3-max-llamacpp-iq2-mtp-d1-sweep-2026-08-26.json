@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-08-26T11:29:41.446980+00:00",
+  "label": "apple-m3-max-llamacpp-iq2-mtp-d1",
+  "model": "qwen38-uncensored-iq2",
+  "endpoint": "/v1/chat/completions",
+  "protocol": {
+    "temperature": 0,
+    "max_tokens": 256,
+    "stream": true,
+    "thinking": false,
+    "response_text_stored": false,
+    "unique_prefix_per_request": true
+  },
+  "cases": [
+    {
+      "case": {
+        "name": "pp1k_tg256_c1",
+        "repeats": 19,
+        "concurrency": 1,
+        "requests": 1
+      },
+      "elapsed_s": 23.4421,
+      "aggregate_output_tok_s": 10.9205,
+      "request_e2e_output_tok_s_mean": 10.9208,
+      "request_decode_tok_s_mean": 16.2264,
+      "ttft_s_mean": 7.7265,
+      "ttft_s_p95": 7.7265,
+      "latency_s_mean": 23.4416,
+      "latency_s_p95": 23.4416,
+      "requests": [
+        {
+          "request_index": 0,
+          "prompt_tokens": 1080,
+          "completion_tokens": 256,
+          "cached_tokens": 0,
+          "ttft_s": 7.7265,
+          "total_s": 23.4416,
+          "e2e_output_tok_s": 10.9208,
+          "decode_tok_s": 16.2264,
+          "finish_reason": "length",
+          "runtime_timings": {
+            "cache_n": 0,
+            "prompt_n": 1080,
+            "prompt_ms": 7669.023,
+            "prompt_per_token_ms": 7.1009472222222225,
+            "prompt_per_second": 140.82628256558885,
+            "predicted_n": 256,
+            "predicted_ms": 15714.994,
+            "predicted_per_token_ms": 61.62742745098039,
+            "predicted_per_second": 16.226541352799753,
+            "draft_n": 127,
+            "draft_n_accepted": 127
+          }
+        }
+      ],
+      "failures": []
+    }
+  ]
+}
