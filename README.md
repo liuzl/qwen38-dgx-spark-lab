@@ -189,6 +189,9 @@ prefix cache 与 ANE 内存边界。同协议实测显示 M3 Max 的短单流 de
 约 73%，但长上下文与并发仍明显落后。仓库仅发布脱敏代码、方法与聚合结果，不包含
 权重、方向 tensor、内部机器信息或原始安全评测回答。
 
+面向一般本地部署决策的中文长文：
+[《Qwen3.8-27B 本地推理怎么选：量化、Runtime、投机解码与 Agent 正确率》](docs/qwen38-local-inference-guide.zh-CN.md)。
+
 ## Status
 
 `v0.2` is an experimental two-platform reference. Before treating either stack
