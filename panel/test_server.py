@@ -86,6 +86,16 @@ class MetricsTests(unittest.TestCase):
         self.assertIn("Description &amp; detail", card)
         self.assertIn("a=1&amp;b=2", card)
 
+    def test_index_escapes_configured_branding(self):
+        original = server.PANEL_HEADING
+        try:
+            server.PANEL_HEADING = "Generic <Panel>"
+            page = server.render_index().decode()
+        finally:
+            server.PANEL_HEADING = original
+        self.assertIn("Generic &lt;Panel&gt;", page)
+        self.assertNotIn("Generic <Panel>", page)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only single-node vLLM dashboard for the DGX Spark."""
+"""Read-only single-node vLLM dashboard."""
 
 from __future__ import annotations
 
@@ -37,6 +37,24 @@ QWEN_API_URL = os.environ.get("QWEN_API_URL", "")
 DGX_DASHBOARD_URL = os.environ.get("DGX_DASHBOARD_URL", "")
 POLL_SECONDS = max(1.0, float(os.environ.get("PANEL_POLL_SECONDS", "2")))
 HISTORY_DAYS = max(1, int(os.environ.get("PANEL_HISTORY_DAYS", "14")))
+PAGE_TITLE = os.environ.get("PANEL_PAGE_TITLE", "Spark LLM Panel")
+PANEL_MARK = os.environ.get("PANEL_MARK", "S")[:2]
+PANEL_EYEBROW = os.environ.get("PANEL_EYEBROW", "DGX SPARK · GB10")
+PANEL_HEADING = os.environ.get("PANEL_HEADING", "Spark LLM")
+PANEL_DESCRIPTION = os.environ.get(
+    "PANEL_DESCRIPTION", "Read-only serving telemetry for Qwen3.8 on DGX Spark."
+)
+KV_CACHE_CODE = os.environ.get("PANEL_KV_CACHE_CODE", "FP8")
+KV_CACHE_NOTE = os.environ.get(
+    "PANEL_KV_CACHE_NOTE", "Usage of the fixed 16 GiB serving cache."
+)
+SPECULATIVE_LABEL = os.environ.get("PANEL_SPECULATIVE_LABEL", "DFLASH2")
+FOOTER_NOTE = os.environ.get(
+    "PANEL_FOOTER_NOTE", "Benchmarks remain CLI-only in scripts/benchmark.sh"
+)
+ENABLE_SERVICE_DIRECTORY = os.environ.get(
+    "PANEL_ENABLE_SERVICE_DIRECTORY", "true"
+).lower() in {"1", "true", "yes", "on"}
 
 SAMPLE_RE = re.compile(
     r"^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{[^}]*\})?\s+"
@@ -207,7 +225,7 @@ def render_apps() -> bytes:
         "dgx": "http://127.0.0.1:11000/",
     }
     with ThreadPoolExecutor(max_workers=len(targets)) as executor:
-        checks = dict(zip(targets, executor.map(probe, targets.values()), strict=False))
+        checks = dict(zip(targets, executor.map(probe, targets.values())))
 
     qwen_models_url = f"{QWEN_API_URL.rstrip('/')}/v1/models" if QWEN_API_URL else ""
     cards = [
@@ -259,6 +277,24 @@ def render_apps() -> bytes:
     ]
     template = (STATIC / "apps.html").read_text()
     return template.replace("{{SERVICE_CARDS}}", "".join(cards)).encode()
+
+
+def render_index() -> bytes:
+    values = {
+        "PAGE_TITLE": PAGE_TITLE,
+        "PANEL_MARK": PANEL_MARK,
+        "PANEL_EYEBROW": PANEL_EYEBROW,
+        "PANEL_HEADING": PANEL_HEADING,
+        "PANEL_DESCRIPTION": PANEL_DESCRIPTION,
+        "KV_CACHE_CODE": KV_CACHE_CODE,
+        "KV_CACHE_NOTE": KV_CACHE_NOTE,
+        "SPECULATIVE_LABEL": SPECULATIVE_LABEL,
+        "FOOTER_NOTE": FOOTER_NOTE,
+    }
+    rendered = (STATIC / "index.html").read_text()
+    for name, value in values.items():
+        rendered = rendered.replace(f"{{{{{name}}}}}", escape(value))
+    return rendered.encode()
 
 
 @dataclass
@@ -554,14 +590,14 @@ class Monitor:
             "tpot_p95_ms",
             "e2e_p95_ms",
         )
-        return [dict(zip(keys, row, strict=False)) for row in rows]
+        return [dict(zip(keys, row)) for row in rows]
 
 
 MONITOR: Monitor | None = None
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "SparkLlmPanel/1"
+    server_version = "LlmPanel/1"
 
     def _headers(self, status: int, content_type: str, length: int) -> None:
         self.send_response(status)
@@ -592,6 +628,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path in {"/apps", "/apps/"}:
+            if not ENABLE_SERVICE_DIRECTORY:
+                self._json({"error": "not found"}, 404)
+                return
             self._send(200, "text/html; charset=utf-8", render_apps())
             return
         if parsed.path == "/api/snapshot":
@@ -627,7 +666,8 @@ class Handler(BaseHTTPRequestHandler):
         )
         if content_type.startswith("text/") or content_type == "application/javascript":
             content_type += "; charset=utf-8"
-        self._send(200, content_type, file_path.read_bytes())
+        body = render_index() if requested == "/index.html" else file_path.read_bytes()
+        self._send(200, content_type, body)
 
     def log_message(self, fmt: str, *args: Any) -> None:
         if self.path not in {"/api/snapshot", "/healthz"}:
@@ -640,7 +680,7 @@ def main() -> None:
     collector = threading.Thread(target=MONITOR.collect_loop, daemon=True)
     collector.start()
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"spark-llm-panel listening on http://{HOST}:{PORT} -> {TARGET}", flush=True)
+    print(f"llm-panel listening on http://{HOST}:{PORT} -> {TARGET}", flush=True)
     try:
         server.serve_forever()
     finally:

@@ -58,6 +58,16 @@ Then open `http://127.0.0.1:18103`.
 | `PANEL_DB` | `panel/panel.db` | SQLite history path |
 | `PANEL_POLL_SECONDS` | `2` | Live sampling interval |
 | `PANEL_HISTORY_DAYS` | `14` | Minute-history retention |
+| `PANEL_PAGE_TITLE` | `Spark LLM Panel` | Browser title |
+| `PANEL_MARK` | `S` | One- or two-character visual mark |
+| `PANEL_EYEBROW` | `DGX SPARK · GB10` | Small heading above the panel name |
+| `PANEL_HEADING` | `Spark LLM` | Visible panel name |
+| `PANEL_DESCRIPTION` | Spark-specific description | HTML metadata description |
+| `PANEL_KV_CACHE_CODE` | `FP8` | KV cache badge text |
+| `PANEL_KV_CACHE_NOTE` | Spark 16 GiB cache note | KV cache explanatory text |
+| `PANEL_SPECULATIVE_LABEL` | `DFLASH2` | Speculative decoding label |
+| `PANEL_FOOTER_NOTE` | Spark benchmark note | Right-side footer text |
+| `PANEL_ENABLE_SERVICE_DIRECTORY` | `true` | Enable the Spark-specific `/apps` route |
 | `BESZEL_URL` | unset | Hardware-dashboard link |
 | `BESZEL_PROBE_URL` | unset | Server-side Beszel health target |
 | `VOX_PUBLIC_URL` | unset | Public VoxStudio link and health target |
@@ -68,6 +78,10 @@ Then open `http://127.0.0.1:18103`.
 
 The provided systemd unit runs as a dynamic unprivileged user with a read-only
 system view and a single writable state directory.
+
+For a neutral deployment, install `llm-panel.service` and copy
+`llm-panel.env.example` to `/etc/default/llm-panel`. This profile removes
+machine/vendor branding and disables the Spark-specific `/apps` directory.
 
 ## Tests
 

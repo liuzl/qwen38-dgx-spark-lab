@@ -67,7 +67,9 @@ function renderSnapshot(snapshot) {
   text("e2e", snapshot.latency?.e2e_p95_ms?.toFixed(1));
   text("model-name", snapshot.models?.join(" · ") || "No served model");
   text("last-update", `updated ${formatClock(snapshot.updated_at)}`);
-  $("beszel-link").href = snapshot.beszel_url || "#";
+  const beszelLink = $("beszel-link");
+  beszelLink.href = snapshot.beszel_url || "#";
+  beszelLink.hidden = !snapshot.beszel_url;
   percentWidth("kv-meter", snapshot.kv_cache_percent);
   percentWidth("prefix-meter", snapshot.prefix_cache_hit_rate);
   renderPositions(snapshot.per_position_acceptance);

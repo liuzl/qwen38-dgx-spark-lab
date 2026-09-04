@@ -4,22 +4,22 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <meta name="description" content="Read-only serving telemetry for Qwen3.8 on DGX Spark.">
-    <title>Spark LLM Panel</title>
+    <meta name="description" content="{{PANEL_DESCRIPTION}}">
+    <title>{{PAGE_TITLE}}</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
         <div class="brand">
-          <div class="mark" aria-hidden="true">S</div>
+          <div class="mark" aria-hidden="true">{{PANEL_MARK}}</div>
           <div>
-            <p class="eyebrow">DGX SPARK · GB10</p>
-            <h1>Spark LLM</h1>
+            <p class="eyebrow">{{PANEL_EYEBROW}}</p>
+            <h1>{{PANEL_HEADING}}</h1>
           </div>
         </div>
         <div class="topbar-actions">
-          <a id="beszel-link" class="quiet-link" href="#" target="_blank" rel="noreferrer">Hardware in Beszel ↗</a>
+          <a id="beszel-link" class="quiet-link" href="#" target="_blank" rel="noreferrer" hidden>Hardware in Beszel ↗</a>
           <div id="health-chip" class="health-chip waiting">
             <span class="health-dot"></span>
             <span id="health-label">Connecting</span>
@@ -67,10 +67,10 @@
         </article>
 
         <article class="metric-card">
-          <div class="metric-heading"><span>KV cache</span><span class="metric-code">FP8</span></div>
+          <div class="metric-heading"><span>KV cache</span><span class="metric-code">{{KV_CACHE_CODE}}</span></div>
           <div class="metric-value"><span id="kv-percent">—</span><small>%</small></div>
           <div class="meter"><span id="kv-meter"></span></div>
-          <p>Usage of the fixed 16 GiB serving cache.</p>
+          <p>{{KV_CACHE_NOTE}}</p>
         </article>
 
         <article class="metric-card">
@@ -85,7 +85,7 @@
         <article class="panel spec-panel">
           <div class="panel-head">
             <div>
-              <p class="section-label">DFLASH2</p>
+              <p class="section-label">{{SPECULATIVE_LABEL}}</p>
               <h2>Draft acceptance</h2>
             </div>
             <div class="acceptance-summary">
@@ -120,7 +120,7 @@
 
       <footer>
         <span>Read only · localhost telemetry · no Docker socket</span>
-        <span>Benchmarks remain CLI-only in <code>scripts/benchmark.sh</code></span>
+        <span>{{FOOTER_NOTE}}</span>
       </footer>
     </main>
     <script src="/app.js" defer></script>
