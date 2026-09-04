@@ -225,6 +225,13 @@ The launch template is
 qualification driver is
 [`scripts/run-a100-qualification.sh`](../scripts/run-a100-qualification.sh).
 
+The deployed capacity profile subsequently fixed the BF16 KV cache at 24 GiB,
+raised the admission limit to 128K, allowed 32 active sequences, and used 16,384
+batched tokens. It measured 338,297 KV tokens (2.58 full 128K requests), passed
+64/64 requests on both aliases at C32, and completed a 124,021-token prompt.
+This profile preserves roughly 15-18 GiB of observed headroom, but its throughput
+has not been benchmarked under the original protocol.
+
 Before production use, run a workload-specific 24-hour soak, validate real Agent
 task completion, and add authentication, queue limits, and service monitoring.
 Requalify after any checkpoint, vLLM, driver, CUDA, or kernel change. If CUDA
@@ -232,4 +239,5 @@ Graph fails on a new revision, eager mode is the compatibility rollback; if the
 adapter fails, disable its alias while preserving the clean base path.
 
 The test services were stopped after qualification. No production routing or
-deployment was performed.
+public endpoint was configured. A later loopback-only deployment reused the
+qualified container and portable model IDs.
