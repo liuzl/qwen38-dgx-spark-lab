@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-04",
+  "status": "qualified_for_image_serving",
+  "hardware": "1x NVIDIA A100 80GB PCIe",
+  "stack": {
+    "model": "Qwen/Qwen3.8-27B-FP8",
+    "model_revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
+    "vllm": "0.28.0",
+    "max_model_len": 131072,
+    "max_num_seqs": 32,
+    "max_num_batched_tokens": 16384,
+    "kv_cache_gib": 24,
+    "kv_cache_tokens": 338297,
+    "speculative_decoding": "native MTP depth 3",
+    "vision_tower_loaded": true,
+    "model_loading_gib": 29.37
+  },
+  "multimodal_policy": {
+    "image_count_per_prompt": 4,
+    "video_count_per_prompt": 0,
+    "default_max_pixels": 1048576,
+    "http_media_domains": [
+      "media.invalid"
+    ],
+    "accepted_public_image_transport": "data URL or protocol-native base64",
+    "processor_cache_gib": 1
+  },
+  "protocol_matrix": {
+    "fixture": "generated 640x360 image containing CODE 7429",
+    "models": [
+      "qwen3.8-27b",
+      "qwen3.8-27b-uncensored"
+    ],
+    "chat_completions_image": "2/2 passed",
+    "responses_input_image": "2/2 passed",
+    "anthropic_messages_image": "2/2 passed",
+    "image_plus_forced_tool": "2/2 passed"
+  },
+  "resource_and_capacity": {
+    "image_c8": {
+      "requests": 8,
+      "successes": 8,
+      "wall_s": 1.67,
+      "peak_gpu_memory_used_mib": 62670,
+      "minimum_gpu_memory_free_mib": 18367
+    },
+    "combined_long_context": {
+      "prompt_tokens": 115249,
+      "image_count": 1,
+      "success": true,
+      "wall_s": 64.59
+    },
+    "large_image_default_resize": {
+      "source_dimensions": "4096x4096",
+      "prompt_tokens_after_processing": 1048,
+      "semantic_check": "passed"
+    }
+  },
+  "text_regression": {
+    "three_protocols_and_forced_tool": "passed for both model aliases",
+    "base_c32": {
+      "requests": 64,
+      "successes": 64,
+      "elapsed_s": 3.0572
+    },
+    "adapter_c32": {
+      "requests": 64,
+      "successes": 64,
+      "elapsed_s": 2.6153
+    },
+    "prefix_cache_isolation": "passed"
+  },
+  "web_ui": {
+    "vision_capability_metadata": true,
+    "upload_to_file_id_to_chat": "passed",
+    "test_file_deleted": true,
+    "public_file_api_exposed": false
+  },
+  "security_gates": {
+    "loopback_media_url": "rejected with HTTP 400 before fetch",
+    "five_image_request": "rejected with HTTP 400",
+    "arbitrary_http_media": false,
+    "video_enabled": false
+  },
+  "remaining_boundaries": [
+    "Video is intentionally disabled and unqualified.",
+    "The default max_pixels processor setting is request-overridable in vLLM 0.28.0 and is not a hard untrusted-user quota.",
+    "The 115249-token image request passed but took 64.59 seconds; long multimodal prefill remains a performance target.",
+    "A dedicated sustained multimodal soak and workload-specific performance comparison remain pending."
+  ]
+}

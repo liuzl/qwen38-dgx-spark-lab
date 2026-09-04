@@ -24,6 +24,10 @@ kv_cache_dtype="${KV_CACHE_DTYPE:-auto}"
 linear_backend="${LINEAR_BACKEND:-auto}"
 enforce_eager="${ENFORCE_EAGER:-1}"
 language_model_only="${LANGUAGE_MODEL_ONLY:-1}"
+limit_mm_per_prompt="${LIMIT_MM_PER_PROMPT:-}"
+allowed_media_domains="${ALLOWED_MEDIA_DOMAINS:-}"
+mm_processor_cache_gb="${MM_PROCESSOR_CACHE_GB:-1}"
+mm_processor_kwargs="${MM_PROCESSOR_KWARGS:-}"
 enable_prefix_caching="${ENABLE_PREFIX_CACHING:-1}"
 enable_chunked_prefill="${ENABLE_CHUNKED_PREFILL:-1}"
 kv_cache_bytes="${KV_CACHE_BYTES:-}"
@@ -78,7 +82,23 @@ elif [[ "$enforce_eager" != 0 ]]; then
 fi
 if [[ "$language_model_only" == 1 ]]; then
   engine_args+=(--language-model-only)
-elif [[ "$language_model_only" != 0 ]]; then
+elif [[ "$language_model_only" == 0 ]]; then
+  if [[ -z "$limit_mm_per_prompt" ]]; then
+    echo "LIMIT_MM_PER_PROMPT is required when LANGUAGE_MODEL_ONLY=0" >&2
+    exit 1
+  fi
+  engine_args+=(
+    --limit-mm-per-prompt "$limit_mm_per_prompt"
+    --mm-processor-cache-gb "$mm_processor_cache_gb"
+  )
+  if [[ -n "$mm_processor_kwargs" ]]; then
+    engine_args+=(--mm-processor-kwargs "$mm_processor_kwargs")
+  fi
+  if [[ -n "$allowed_media_domains" ]]; then
+    read -r -a media_domains <<<"$allowed_media_domains"
+    engine_args+=(--allowed-media-domains "${media_domains[@]}")
+  fi
+else
   echo "LANGUAGE_MODEL_ONLY must be 0 or 1" >&2
   exit 1
 fi

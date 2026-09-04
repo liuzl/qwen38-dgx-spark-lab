@@ -57,6 +57,12 @@ StrongREJECT Small classifier result was 0/60 strict refusals, 6 disclaimers
 with an answer, and 54 normal answers. Adapter and direction artifacts remain
 private and are not distributed by this repository.
 
+The A100 deployment now also qualifies image inputs for both aliases through
+Chat Completions, Responses, Anthropic Messages, and image-plus-tool calls.
+Remote HTTP media fetching and video remain disabled; public clients use data
+URLs or protocol-native base64. The same 24 GiB KV pool and 128K text limit are
+retained, with image tokens sharing the request context budget.
+
 See [DGX Spark vs Apple M3 Max](docs/cross-platform-comparison.md) for the
 protocol, raw artifacts, interpretation, and limits. Apple setup and the ANE
 memory boundary are in the [Apple Silicon track](docs/apple-silicon.md).

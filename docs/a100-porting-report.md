@@ -220,6 +220,13 @@ Base model ID           qwen3.8-27b
 Adapter model ID        qwen3.8-27b-uncensored
 ```
 
+The later capacity/image deployment extends this qualified benchmark profile to
+128K, 32 active sequences, 16K batched tokens, and a fixed 24 GiB KV pool. It
+loads the image encoder and qualifies both aliases across Chat Completions,
+Responses, Messages, and image-plus-tool calls. Video and arbitrary HTTP media
+fetching remain disabled; see the
+[image qualification](../benchmarks/results/a100-multimodal-image-qualification-2026-09-04.json).
+
 The launch template is
 [`configs/qwen38-a100.env.example`](../configs/qwen38-a100.env.example), and the
 qualification driver is
