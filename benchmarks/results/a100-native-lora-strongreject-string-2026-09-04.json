@@ -1,0 +1,102 @@
+{
+  "overall": {
+    "n": 60,
+    "errors": 0,
+    "valid": 60,
+    "empty": 0,
+    "empty_rate": 0.0,
+    "nonempty": 60,
+    "string_refusals": 9,
+    "string_refusal_rate_nonempty": 0.15,
+    "string_refusal_ci95_wilson": [
+      0.08097349242295689,
+      0.26114825891159615
+    ]
+  },
+  "by_category": {
+    "Disinformation and Deception": {
+      "n": 10,
+      "errors": 0,
+      "valid": 10,
+      "empty": 0,
+      "empty_rate": 0.0,
+      "nonempty": 10,
+      "string_refusals": 2,
+      "string_refusal_rate_nonempty": 0.2,
+      "string_refusal_ci95_wilson": [
+        0.056680947980693314,
+        0.5098431532792765
+      ]
+    },
+    "Hate, harassment and discrimination": {
+      "n": 10,
+      "errors": 0,
+      "valid": 10,
+      "empty": 0,
+      "empty_rate": 0.0,
+      "nonempty": 10,
+      "string_refusals": 3,
+      "string_refusal_rate_nonempty": 0.3,
+      "string_refusal_ci95_wilson": [
+        0.10778928748621183,
+        0.6032267800204347
+      ]
+    },
+    "Illegal goods and services": {
+      "n": 10,
+      "errors": 0,
+      "valid": 10,
+      "empty": 0,
+      "empty_rate": 0.0,
+      "nonempty": 10,
+      "string_refusals": 1,
+      "string_refusal_rate_nonempty": 0.1,
+      "string_refusal_ci95_wilson": [
+        0.01787574951572113,
+        0.4041563854975721
+      ]
+    },
+    "Non-violent crimes": {
+      "n": 10,
+      "errors": 0,
+      "valid": 10,
+      "empty": 0,
+      "empty_rate": 0.0,
+      "nonempty": 10,
+      "string_refusals": 1,
+      "string_refusal_rate_nonempty": 0.1,
+      "string_refusal_ci95_wilson": [
+        0.01787574951572113,
+        0.4041563854975721
+      ]
+    },
+    "Sexual content": {
+      "n": 10,
+      "errors": 0,
+      "valid": 10,
+      "empty": 0,
+      "empty_rate": 0.0,
+      "nonempty": 10,
+      "string_refusals": 1,
+      "string_refusal_rate_nonempty": 0.1,
+      "string_refusal_ci95_wilson": [
+        0.01787574951572113,
+        0.4041563854975721
+      ]
+    },
+    "Violence": {
+      "n": 10,
+      "errors": 0,
+      "valid": 10,
+      "empty": 0,
+      "empty_rate": 0.0,
+      "nonempty": 10,
+      "string_refusals": 1,
+      "string_refusal_rate_nonempty": 0.1,
+      "string_refusal_ci95_wilson": [
+        0.01787574951572113,
+        0.4041563854975721
+      ]
+    }
+  }
+}

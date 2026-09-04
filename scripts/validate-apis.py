@@ -87,23 +87,37 @@ def validate_model(base_url: str, model: str) -> dict[str, Any]:
         for item in messages.get("content", [])
         if item.get("type") == "text"
     )
-    response_types = [item.get("type") for item in responses.get("output", [])]
+    response_output = responses.get("output", [])
+    response_types = [item.get("type") for item in response_output]
+    response_text = "".join(
+        content.get("text", "")
+        for item in response_output
+        if item.get("type") == "message"
+        for content in item.get("content", [])
+        if content.get("type") == "output_text"
+    )
     tool_calls = chat_tool["choices"][0]["message"].get("tool_calls", [])
 
     if chat_text.strip() != "api-ok":
         raise RuntimeError(f"{model}: unexpected chat response {chat_text!r}")
     if message_text.strip() != "messages-ok":
         raise RuntimeError(f"{model}: unexpected Messages response {message_text!r}")
-    if not responses.get("output"):
-        raise RuntimeError(f"{model}: empty Responses output")
+    if response_text.strip() != "responses-ok":
+        raise RuntimeError(f"{model}: unexpected Responses output {response_text!r}")
     if not tool_calls or tool_calls[0]["function"]["name"] != "get_weather":
         raise RuntimeError(f"{model}: forced tool call failed")
+    arguments = tool_calls[0]["function"].get("arguments", {})
+    if isinstance(arguments, str):
+        arguments = json.loads(arguments)
+    if arguments != {"city": "Singapore"}:
+        raise RuntimeError(f"{model}: unexpected tool arguments {arguments!r}")
 
     return {
         "model": model,
         "chat": chat_text,
         "messages": message_text,
         "responses_output_types": response_types,
+        "responses": response_text,
         "forced_tool": tool_calls[0]["function"],
     }
 
@@ -111,13 +125,23 @@ def validate_model(base_url: str, model: str) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", required=True)
-    parser.add_argument("--base-model", required=True)
-    parser.add_argument("--adapter-model", required=True)
+    parser.add_argument(
+        "--model",
+        action="append",
+        default=[],
+        help="model ID to validate; repeat for multiple IDs",
+    )
+    parser.add_argument("--base-model")
+    parser.add_argument("--adapter-model")
     args = parser.parse_args()
-    result = [
-        validate_model(args.base_url, args.base_model),
-        validate_model(args.base_url, args.adapter_model),
-    ]
+    models = [*args.model]
+    models.extend(
+        model for model in (args.base_model, args.adapter_model) if model is not None
+    )
+    models = list(dict.fromkeys(models))
+    if not models:
+        parser.error("provide --model or the legacy --base-model/--adapter-model")
+    result = [validate_model(args.base_url, model) for model in models]
     print(json.dumps(result, indent=2))
 
 

@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-04",
+  "status": "qualified",
+  "hardware": "1x NVIDIA A100 80GB PCIe",
+  "model": "Qwen/Qwen3.8-27B-FP8",
+  "model_revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
+  "vllm": "0.28.0",
+  "container_manifest_digest": "sha256:a77ed1c057e0458dbed205dea0ecaacd0ca2405721be6e58182bf9ee42c359f6",
+  "fixed_protocol": {
+    "max_model_len": 32768,
+    "max_num_seqs": 8,
+    "max_num_batched_tokens": 8192,
+    "gpu_memory_utilization": 0.9,
+    "kv_cache_dtype": "auto (BF16)",
+    "prefix_caching": true,
+    "chunked_prefill": true,
+    "temperature": 0,
+    "thinking": false,
+    "max_output_tokens": 256
+  },
+  "arms": [
+    {
+      "name": "eager_ar",
+      "mtp_depth": 0,
+      "cuda_graph": false,
+      "acceptance_percent": null,
+      "kv_cache_gib": 41.64,
+      "kv_cache_tokens": 593920,
+      "startup_s": 119.57,
+      "pp1k_c1_decode_tok_s": 11.8984,
+      "pp1k_c4_aggregate_tok_s": 40.9905,
+      "pp16k_c1_decode_tok_s": 11.5645
+    },
+    {
+      "name": "eager_mtp_k1",
+      "mtp_depth": 1,
+      "cuda_graph": false,
+      "accepted_tokens": 1777,
+      "drafted_tokens": 1816,
+      "acceptance_percent": 97.85,
+      "kv_cache_gib": 40.95,
+      "kv_cache_tokens": 517079,
+      "startup_s": 117.07,
+      "pp1k_c1_decode_tok_s": 20.8398,
+      "pp1k_c4_aggregate_tok_s": 71.9842,
+      "pp16k_c1_decode_tok_s": 19.6205
+    },
+    {
+      "name": "eager_mtp_k2",
+      "mtp_depth": 2,
+      "cuda_graph": false,
+      "accepted_tokens": 2361,
+      "drafted_tokens": 2484,
+      "acceptance_percent": 95.05,
+      "kv_cache_gib": 40.95,
+      "kv_cache_tokens": 487810,
+      "startup_s": 119.67,
+      "pp1k_c1_decode_tok_s": 28.9786,
+      "pp1k_c4_aggregate_tok_s": 96.1542,
+      "pp16k_c1_decode_tok_s": 29.249
+    },
+    {
+      "name": "eager_mtp_k3",
+      "mtp_depth": 3,
+      "cuda_graph": false,
+      "accepted_tokens": 2751,
+      "drafted_tokens": 2970,
+      "acceptance_percent": 92.63,
+      "kv_cache_gib": 40.95,
+      "kv_cache_tokens": 461677,
+      "startup_s": 115.36,
+      "pp1k_c1_decode_tok_s": 33.1012,
+      "pp1k_c4_aggregate_tok_s": 111.0648,
+      "pp16k_c1_decode_tok_s": 36.2479
+    },
+    {
+      "name": "graph_mtp_k3",
+      "mtp_depth": 3,
+      "cuda_graph": true,
+      "cudagraph_mode": "FULL_AND_PIECEWISE",
+      "accepted_tokens": 2749,
+      "drafted_tokens": 2976,
+      "acceptance_percent": 92.37,
+      "kv_cache_gib": 39.21,
+      "kv_cache_tokens": 441782,
+      "startup_s": 202.66,
+      "compilation_s": 79.8,
+      "pp1k_c1_decode_tok_s": 124.4754,
+      "pp1k_c4_aggregate_tok_s": 251.6739,
+      "pp16k_c1_decode_tok_s": 91.0521
+    }
+  ],
+  "quality_and_stability": {
+    "eager_ar_256_token_canaries": "3/4; Chinese arithmetic truncated",
+    "mtp_512_token_canaries": "4/4 for K1, K2, K3, and graph K3",
+    "api_smoke": "passed for every arm",
+    "stability": "64/64 requests passed for every arm",
+    "request_failures": 0,
+    "container_restarts": 0,
+    "oom": false,
+    "raw_responses_published": false
+  },
+  "decision": {
+    "best_arm": "graph_mtp_k3",
+    "stop_deeper_eager_mtp_sweep": true,
+    "reason": "K3 remained beneficial and CUDA Graph changed the deployment decision; deeper MTP is lower priority than prefill tuning.",
+    "remaining_boundary": "Long-prompt TTFT remains substantially slower than the Spark reference."
+  }
+}

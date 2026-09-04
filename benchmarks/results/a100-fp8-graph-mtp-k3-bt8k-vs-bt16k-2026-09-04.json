@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-03T19:19:07.185829+00:00",
+  "reference_label": "a100-fp8-graph-mtp-k3-2026-09-04",
+  "candidate_label": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04",
+  "protocol": {
+    "temperature": 0,
+    "max_tokens": 256,
+    "stream": true,
+    "thinking": false,
+    "response_text_stored": false,
+    "unique_prefix_per_request": true
+  },
+  "comparisons": [
+    {
+      "case": "pp1k_tg256_c1",
+      "reference": {
+        "prompt_tokens": 1080,
+        "aggregate_output_tok_s": 102.9582,
+        "request_decode_tok_s_mean": 124.4754,
+        "itl_ms_mean": 8.0337,
+        "ttft_s_mean": 0.4368,
+        "latency_s_mean": 2.4854,
+        "failures": 0
+      },
+      "candidate": {
+        "prompt_tokens": 1080,
+        "aggregate_output_tok_s": 103.0009,
+        "request_decode_tok_s_mean": 124.2983,
+        "itl_ms_mean": 8.0452,
+        "ttft_s_mean": 0.433,
+        "latency_s_mean": 2.4845,
+        "failures": 0
+      },
+      "candidate_vs_reference_percent": {
+        "aggregate_output_tok_s": 0.04,
+        "request_decode_tok_s_mean": -0.14,
+        "itl_ms_mean": 0.14,
+        "ttft_s_mean": -0.87,
+        "latency_s_mean": -0.04
+      }
+    },
+    {
+      "case": "pp1k_tg256_c4",
+      "reference": {
+        "prompt_tokens": 1080,
+        "aggregate_output_tok_s": 251.6739,
+        "request_decode_tok_s_mean": 108.8454,
+        "itl_ms_mean": 9.2288,
+        "ttft_s_mean": 1.7028,
+        "latency_s_mean": 4.0562,
+        "failures": 0
+      },
+      "candidate": {
+        "prompt_tokens": 1080,
+        "aggregate_output_tok_s": 251.0803,
+        "request_decode_tok_s_mean": 104.8643,
+        "itl_ms_mean": 9.6012,
+        "ttft_s_mean": 1.4537,
+        "latency_s_mean": 3.902,
+        "failures": 0
+      },
+      "candidate_vs_reference_percent": {
+        "aggregate_output_tok_s": -0.24,
+        "request_decode_tok_s_mean": -3.66,
+        "itl_ms_mean": 4.04,
+        "ttft_s_mean": -14.63,
+        "latency_s_mean": -3.8
+      }
+    },
+    {
+      "case": "pp16k_tg256_c1",
+      "reference": {
+        "prompt_tokens": 16345,
+        "aggregate_output_tok_s": 27.8945,
+        "request_decode_tok_s_mean": 91.0521,
+        "itl_ms_mean": 10.9827,
+        "ttft_s_mean": 6.3753,
+        "latency_s_mean": 9.1759,
+        "failures": 0
+      },
+      "candidate": {
+        "prompt_tokens": 16345,
+        "aggregate_output_tok_s": 27.9999,
+        "request_decode_tok_s_mean": 92.2662,
+        "itl_ms_mean": 10.8382,
+        "ttft_s_mean": 6.378,
+        "latency_s_mean": 9.1417,
+        "failures": 0
+      },
+      "candidate_vs_reference_percent": {
+        "aggregate_output_tok_s": 0.38,
+        "request_decode_tok_s_mean": 1.33,
+        "itl_ms_mean": -1.32,
+        "ttft_s_mean": 0.04,
+        "latency_s_mean": -0.37
+      }
+    }
+  ]
+}

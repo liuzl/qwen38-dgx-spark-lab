@@ -1,8 +1,9 @@
 # Qwen3.8 Local Inference Lab
 
 Reproducible serving recipes and measured experiments for Qwen3.8-27B on an
-NVIDIA DGX Spark (GB10, `sm_121`) and Apple Silicon. The Spark remains the
-reference serving track; the M3 Max track provides a controlled local-inference
+NVIDIA DGX Spark (GB10, `sm_121`), NVIDIA A100, and Apple Silicon. The Spark
+remains the reference serving track; the A100 track starts from a conservative
+FP8/W8A16 vLLM baseline, while the M3 Max track provides a controlled local-inference
 comparison using oMLX and Lightning MTP.
 
 The current reference stack serves two model IDs from one vLLM process:
@@ -40,9 +41,30 @@ context and concurrency remain Spark strengths. Separately, oMLX prefix caching
 reduced a repeated 5.2K-prefix turn from 25.19 to 6.41 seconds on the M3 Max;
 that is a prefill/TTFT gain, not a decode-speed multiplier.
 
+The A100 qualification subsequently found that the initial compatibility arm
+(FP8 W8A16 Marlin, eager, autoregressive) was misleadingly slow at 11.90 tok/s.
+Enabling the checkpoint's native MTP at depth 3 and vLLM CUDA Graphs raised the
+same short C1 decode to **124.48 tok/s** and C4 aggregate throughput to **251.67
+tok/s**, with 92.37% draft-token acceptance, 4/4 deterministic canaries, and
+64/64 stability requests. A same-protocol BF16 arm was slower at decode but
+faster at long prefill. See [NVIDIA A100 qualification](docs/a100.md).
+
+The Spark refusal-direction method was also ported to the official A100 FP8
+checkpoint. One process now qualifies the portable IDs `qwen3.8-27b` and
+`qwen3.8-27b-uncensored`; both passed all three APIs, forced tools, cache
+isolation, deterministic canaries, and 64-request stability. The adapter's
+StrongREJECT Small classifier result was 0/60 strict refusals, 6 disclaimers
+with an answer, and 54 normal answers. Adapter and direction artifacts remain
+private and are not distributed by this repository.
+
 See [DGX Spark vs Apple M3 Max](docs/cross-platform-comparison.md) for the
 protocol, raw artifacts, interpretation, and limits. Apple setup and the ANE
 memory boundary are in the [Apple Silicon track](docs/apple-silicon.md).
+The completed controlled-research [NVIDIA A100 qualification](docs/a100.md)
+records its verified environment, success gates, minimum port, tuning results,
+and native-LoRA qualification.
+The concise decision record is available in the
+[Qwen3.8-27B A100 porting report](docs/a100-porting-report.md).
 
 ## DGX Spark measured result
 
@@ -181,20 +203,17 @@ the [monitoring architecture](docs/monitoring.md) for the boundary and alert
 policy. Its `/apps` view is the private service directory for VoxStudio,
 Beszel, Qwen, LLM telemetry, and the DGX Dashboard.
 
-## 中文摘要
+## Further reading
 
-本项目集中整理 Qwen3.8-27B 在 DGX Spark 与 Apple Silicon 上的可复现实验。Spark
-轨道覆盖 vLLM、DFlash2 与原生 rank-1 LoRA；M3 Max 轨道覆盖 oMLX、Lightning MTP、
-prefix cache 与 ANE 内存边界。同协议实测显示 M3 Max 的短单流 decode 达 Spark 的
-约 73%，但长上下文与并发仍明显落后。仓库仅发布脱敏代码、方法与聚合结果，不包含
-权重、方向 tensor、内部机器信息或原始安全评测回答。
-
-面向一般本地部署决策的中文长文：
-[《Qwen3.8-27B 本地推理怎么选：量化、Runtime、投机解码与 Agent 正确率》](docs/qwen38-local-inference-guide.zh-CN.md)。
+For a platform-neutral deployment decision framework, see
+[Choosing a Qwen3.8-27B Local Inference Stack](docs/qwen38-local-inference-guide.md).
+For the A100 measurements, FP8/BF16 decision, performance root cause, and
+native uncensored-LoRA port, see the
+[Qwen3.8-27B A100 porting report](docs/a100-porting-report.md).
 
 ## Status
 
-`v0.2` is an experimental two-platform reference. Before treating either stack
+`v0.2` is an experimental three-platform reference. Before treating any stack
 as a production service, run a workload-specific soak test and validate every
 new runtime, checkpoint, driver, CUDA, MLX, or operating-system revision.
 

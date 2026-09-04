@@ -1,0 +1,28 @@
+[
+  {
+    "model": "qwen3.8-27b",
+    "chat": "api-ok",
+    "messages": "messages-ok",
+    "responses_output_types": [
+      "message"
+    ],
+    "responses": "responses-ok",
+    "forced_tool": {
+      "name": "get_weather",
+      "arguments": "{\"city\": \"Singapore\"}"
+    }
+  },
+  {
+    "model": "qwen3.8-27b-uncensored",
+    "chat": "api-ok",
+    "messages": "messages-ok",
+    "responses_output_types": [
+      "message"
+    ],
+    "responses": "responses-ok",
+    "forced_tool": {
+      "name": "get_weather",
+      "arguments": "{\"city\": \"Singapore\"}"
+    }
+  }
+]

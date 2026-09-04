@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-04",
+  "status": "partial",
+  "result_label": "a100-fp8-eager-ar-2026-09-03",
+  "hardware": {
+    "gpu": "NVIDIA A100 80GB PCIe",
+    "gpu_count": 1,
+    "compute_capability": "8.0",
+    "driver": "550.54.14",
+    "power_limit_w": 300.0,
+    "pcie": "Gen4 x16",
+    "preexisting_compute_processes": 2,
+    "preexisting_compute_memory_mib": 4270
+  },
+  "software": {
+    "vllm": "0.28.0",
+    "pytorch": "2.13.0+cu129",
+    "transformers": "5.15.1",
+    "container_manifest_digest": "sha256:a77ed1c057e0458dbed205dea0ecaacd0ca2405721be6e58182bf9ee42c359f6"
+  },
+  "model": {
+    "id": "Qwen/Qwen3.8-27B-FP8",
+    "revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
+    "checkpoint_size_gib": 28.75,
+    "model_loading_memory_gib": 28.02,
+    "quantization": "FP8 weights on Ampere W8A16",
+    "linear_kernel": "MarlinFP8ScaledMMLinearKernel"
+  },
+  "serving": {
+    "text_only": true,
+    "max_model_len": 32768,
+    "max_num_seqs": 8,
+    "max_num_batched_tokens": 8192,
+    "gpu_memory_utilization": 0.9,
+    "kv_cache_dtype": "auto (BF16)",
+    "kv_cache_gib": 41.64,
+    "kv_cache_tokens": 593920,
+    "max_32k_concurrency": 18.12,
+    "enforce_eager": true,
+    "speculative_decoding": null,
+    "prefix_caching": true,
+    "chunked_prefill": true,
+    "full_attention_backend": "FlashAttention 2",
+    "gdn_prefill_backend": "Triton/FLA",
+    "gdn_decode_backend": "Triton fallback"
+  },
+  "api_smoke": {
+    "chat_completions_exact": true,
+    "responses_exact": true,
+    "anthropic_messages_exact": true,
+    "forced_tool_name_and_arguments": true
+  },
+  "canaries": {
+    "all_passed": false,
+    "passed": [
+      "code",
+      "multilingual",
+      "structured"
+    ],
+    "failed": {
+      "chinese_reasoning": "hit the 256-token limit without producing the expected answer"
+    },
+    "raw_responses_published": false
+  },
+  "benchmark": {
+    "protocol": {
+      "temperature": 0,
+      "thinking": false,
+      "max_tokens": 256,
+      "unique_prefix_per_request": true
+    },
+    "validity": {
+      "requests": 10,
+      "failures": 0,
+      "all_completion_tokens": 256,
+      "all_finish_reason": "length",
+      "all_cached_tokens": 0
+    },
+    "cases": [
+      {
+        "name": "pp1k_tg256_c1",
+        "prompt_tokens": 1080,
+        "aggregate_output_tok_s": 11.6569,
+        "decode_tok_s": 11.8984,
+        "itl_ms": 84.0446,
+        "ttft_s": 0.5288,
+        "latency_s": 21.9602
+      },
+      {
+        "name": "pp1k_tg256_c4",
+        "prompt_tokens": 1080,
+        "aggregate_output_tok_s": 40.9905,
+        "request_decode_tok_s_mean": 10.9834,
+        "itl_ms_mean": 91.1093,
+        "ttft_s_mean": 1.7468,
+        "ttft_s_p95": 1.7865,
+        "latency_s_mean": 24.9797
+      },
+      {
+        "name": "pp16k_tg256_c1",
+        "prompt_tokens": 16345,
+        "aggregate_output_tok_s": 8.9029,
+        "decode_tok_s": 11.5645,
+        "itl_ms": 86.4717,
+        "ttft_s": 6.7032,
+        "latency_s": 28.7535
+      }
+    ]
+  },
+  "stability_smoke": {
+    "requests": 64,
+    "concurrency": 4,
+    "successes": 64,
+    "failures": 0,
+    "elapsed_s": 15.942,
+    "request_rate": 4.0145,
+    "latency_s_mean": 0.9916,
+    "latency_s_max": 1.2721,
+    "container_restarts": 0,
+    "oom_killed": false
+  },
+  "telemetry": {
+    "duration_s": 300.058,
+    "samples": 276,
+    "memory_used_mib": {
+      "min": 76462,
+      "mean": 78027.457,
+      "max": 79054
+    },
+    "gpu_utilization_percent": {
+      "mean": 23.036,
+      "max": 100
+    },
+    "power_w": {
+      "mean": 111.795,
+      "p95": 283.83,
+      "max_observed": 354.0,
+      "max_is_sensor_anomaly_candidate": true,
+      "samples_above_reported_300w_limit": 7
+    },
+    "temperature_c": {
+      "mean": 44.051,
+      "p95": 51,
+      "max": 55
+    },
+    "sample_errors": 0
+  },
+  "decision": {
+    "qualified_for_performance_promotion": false,
+    "reason": "One of four deterministic quality canaries failed; FP8 W8A16 eager AR is also throughput-limited.",
+    "next_tests": [
+      "rerun the failed canary with a larger output budget",
+      "test native MTP with acceptance metrics",
+      "test bounded CUDA Graph startup and performance",
+      "retain BF16 as an abbreviated quality reference"
+    ]
+  },
+  "raw_responses_published": false
+}

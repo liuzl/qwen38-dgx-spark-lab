@@ -137,6 +137,7 @@ def stream_request(
     total_s = finished - started
     decode_s = finished - first_token_at if first_token_at is not None else None
     decode_tokens = max(0, int(completion_tokens) - 1)
+    itl_ms = (decode_s / decode_tokens * 1000) if decode_s and decode_tokens else None
     return {
         "request_index": request_index,
         "prompt_tokens": int(prompt_tokens),
@@ -150,6 +151,7 @@ def stream_request(
         "decode_tok_s": round(decode_tokens / decode_s, 4)
         if decode_s and decode_tokens
         else None,
+        "itl_ms": round(itl_ms, 4) if itl_ms is not None else None,
         "finish_reason": finish_reason,
         "runtime_timings": timings or None,
     }
@@ -213,6 +215,7 @@ def run_case(args: argparse.Namespace, case: Case) -> dict[str, Any]:
     decode_rates = [
         row["decode_tok_s"] for row in rows if row["decode_tok_s"] is not None
     ]
+    itls = [row["itl_ms"] for row in rows if row["itl_ms"] is not None]
     return {
         "case": asdict(case),
         "elapsed_s": round(elapsed, 4),
@@ -225,6 +228,8 @@ def run_case(args: argparse.Namespace, case: Case) -> dict[str, Any]:
         "request_decode_tok_s_mean": round(statistics.fmean(decode_rates), 4)
         if decode_rates
         else None,
+        "itl_ms_mean": round(statistics.fmean(itls), 4) if itls else None,
+        "itl_ms_p95": round(percentile(itls, 0.95), 4) if itls else None,
         "ttft_s_mean": round(statistics.fmean(ttfts), 4) if ttfts else None,
         "ttft_s_p95": round(percentile(ttfts, 0.95), 4) if ttfts else None,
         "latency_s_mean": round(statistics.fmean(total_times), 4)

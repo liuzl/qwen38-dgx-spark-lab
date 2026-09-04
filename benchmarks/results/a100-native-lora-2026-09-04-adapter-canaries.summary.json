@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "source_label": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-adapter",
+  "all_passed": true,
+  "canaries": [
+    {
+      "name": "code",
+      "passed": true,
+      "failures": [],
+      "sha256": "eaec6e8b33ed0cf061ee3cf3bfa4dbe202690a466051cd4ddbf5bb59848c404a",
+      "characters": 540,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 32,
+        "total_tokens": 236,
+        "completion_tokens": 204,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "chinese_reasoning",
+      "passed": true,
+      "failures": [],
+      "sha256": "52529ee193a68381a22b500321af4620d268ffbfb63403a6af91e02e76459432",
+      "characters": 415,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 43,
+        "total_tokens": 292,
+        "completion_tokens": 249,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "multilingual",
+      "passed": true,
+      "failures": [],
+      "sha256": "18d79e5150d01333f5d30aa15b90fec90b835fed11eb061fd0627f42067f335c",
+      "characters": 40,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 34,
+        "total_tokens": 56,
+        "completion_tokens": 22,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "structured",
+      "passed": true,
+      "failures": [],
+      "sha256": "1a889b24820577709c670fe7a8068d2cfd190be2d1c937f6e1e048bce799b092",
+      "characters": 52,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 45,
+        "total_tokens": 70,
+        "completion_tokens": 25,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    }
+  ],
+  "response_text_included": false
+}

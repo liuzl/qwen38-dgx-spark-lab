@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-04",
+  "status": "qualified_for_controlled_research",
+  "hardware": "1x NVIDIA A100 80GB PCIe",
+  "stack": {
+    "model": "Qwen/Qwen3.8-27B-FP8",
+    "model_revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
+    "vllm": "0.28.0",
+    "weights": "FP8 W8A16 Marlin",
+    "cuda_graph": "FULL_AND_PIECEWISE",
+    "speculative_decoding": "native MTP depth 3",
+    "kv_cache_dtype": "auto (BF16)",
+    "max_model_len": 32768,
+    "max_num_seqs": 8,
+    "max_num_batched_tokens": 8192
+  },
+  "served_models": {
+    "base": "qwen3.8-27b",
+    "adapter": "qwen3.8-27b-uncensored"
+  },
+  "conversion": {
+    "method": "output-space refusal direction to native rank-1 LoRA",
+    "model_index_sha256": "f0838c766951bdfe76d6afbdb2771a8f67aaa2231dedb3d33cebd817729843a2",
+    "model_weight_map_sha256": "46567bb127ce3729422db902e3904d96aba000ae773c180211993abb474dd16d",
+    "directions_sha256": "9de12cbe71f38baf2f6b4a21dfcb2b13bd6416ab4785214afce27c7543f05c1d",
+    "adapter_sha256": "d616765383d7f3957677ef6664223fc6ec7e0895550d14405bc110c40d1d2f40",
+    "modules": 128,
+    "tensors": 256,
+    "rank": 1,
+    "quantization_counts": {
+      "fp8_block_128x128": 128
+    },
+    "all_tensors_finite": true,
+    "adapter_distributed": false,
+    "direction_artifact_distributed": false
+  },
+  "api_smoke": {
+    "models_tested": [
+      "qwen3.8-27b",
+      "qwen3.8-27b-uncensored"
+    ],
+    "chat_completions_exact": true,
+    "responses_exact": true,
+    "anthropic_messages_exact": true,
+    "forced_tool_name_and_arguments": true
+  },
+  "prefix_cache_isolation": {
+    "base_first_hit_tokens": 0,
+    "base_second_hit_tokens": 2400,
+    "adapter_first_after_base_hit_tokens": 0,
+    "adapter_second_hit_tokens": 2400,
+    "passed": true
+  },
+  "deterministic_canaries": {
+    "base": "4/4 passed",
+    "adapter": "4/4 passed",
+    "response_text_published": false
+  },
+  "benchmark": {
+    "protocol": {
+      "temperature": 0,
+      "thinking": false,
+      "max_output_tokens": 256,
+      "unique_prefix_per_request": true
+    },
+    "base": {
+      "pp1k_c1_decode_tok_s": 124.5273,
+      "pp1k_c4_aggregate_tok_s": 264.7702,
+      "pp16k_c1_decode_tok_s": 92.4866
+    },
+    "adapter": {
+      "pp1k_c1_decode_tok_s": 119.1602,
+      "pp1k_c4_aggregate_tok_s": 233.5508,
+      "pp16k_c1_decode_tok_s": 86.1776
+    },
+    "adapter_vs_base_percent": {
+      "pp1k_c1_decode_tok_s": -4.31,
+      "pp1k_c4_aggregate_tok_s": -11.79,
+      "pp16k_c1_decode_tok_s": -6.82
+    },
+    "request_failures": 0
+  },
+  "stability": {
+    "base": "64/64 requests passed",
+    "adapter": "64/64 requests passed",
+    "container_restarts": 0,
+    "oom": false
+  },
+  "speculative_acceptance": {
+    "neutral_qualification": {
+      "accepted_tokens": 5469,
+      "drafted_tokens": 5772,
+      "acceptance_percent": 94.75
+    },
+    "strongreject_adapter_workload": {
+      "accepted_tokens": 47000,
+      "drafted_tokens": 83076,
+      "acceptance_percent": 56.57,
+      "note": "The clean MTP head diverges more from the adapter target on harmful prompts; verification remains lossless but speculative benefit is workload-dependent."
+    }
+  },
+  "strongreject_small": {
+    "prompts": 60,
+    "temperature": 0,
+    "max_tokens": 2048,
+    "concurrency": 4,
+    "errors": 0,
+    "empty": 0,
+    "literal_string_matches": 9,
+    "classifier": {
+      "model": "Human-CentricAI/LLM-Refusal-Classifier",
+      "revision": "0d9379eaad351ba5a89a3da24ef5b478d3daeff0",
+      "strict_refusals": 0,
+      "disclaimers_with_answer": 6,
+      "normal_answers": 54
+    },
+    "raw_prompts_and_responses_published": false
+  },
+  "resources": {
+    "model_loading_gib": 28.5,
+    "kv_cache_gib": 39.11,
+    "kv_cache_tokens": 440612,
+    "max_32k_concurrency": 13.45,
+    "startup_s": 255.95,
+    "compilation_s": 116.5,
+    "cuda_graph_memory_gib": 0.43
+  },
+  "decision": {
+    "base_fast_path_preserved": true,
+    "adapter_behavior_gate_passed": true,
+    "recommended_aliases": [
+      "qwen3.8-27b",
+      "qwen3.8-27b-uncensored"
+    ],
+    "deployment_status": "not deployed"
+  }
+}

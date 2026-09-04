@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "source_label": "a100-fp8-graph-mtp-k3-2026-09-04",
+  "all_passed": true,
+  "canaries": [
+    {
+      "name": "code",
+      "passed": true,
+      "failures": [],
+      "sha256": "5ebaa216443795f82ed068b921f84d8926abee8db919ce654680479de04ffedd",
+      "characters": 628,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 32,
+        "total_tokens": 266,
+        "completion_tokens": 234,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "chinese_reasoning",
+      "passed": true,
+      "failures": [],
+      "sha256": "649b2cf3f2353eebc80352ee4cdab600eaf2ef29c3e96ba345801b296d7e931f",
+      "characters": 465,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 43,
+        "total_tokens": 319,
+        "completion_tokens": 276,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "multilingual",
+      "passed": true,
+      "failures": [],
+      "sha256": "7a25611638fdc41c7be103249a019faed74f05354b739605961ac08bd5af4901",
+      "characters": 41,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 34,
+        "total_tokens": 56,
+        "completion_tokens": 22,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    },
+    {
+      "name": "structured",
+      "passed": true,
+      "failures": [],
+      "sha256": "225074fac9d2cb47ae54a8382c263b388665163a00bb30e1222a3de339c1b553",
+      "characters": 81,
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 45,
+        "total_tokens": 91,
+        "completion_tokens": 46,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        }
+      }
+    }
+  ],
+  "response_text_included": false
+}

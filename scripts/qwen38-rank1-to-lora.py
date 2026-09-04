@@ -13,8 +13,11 @@ The generated adapter fixes lambda=1. Base requests select no adapter; the
 modified alias selects this adapter through vLLM's native per-request LoRA.
 
 RadixArk Qwen3.8 uses static FP8 for attention/GDN output projections and
-packed NVFP4 for MLP down projections. This converter consumes both formats
-directly and never materializes a complete dequantized model.
+packed NVFP4 for MLP down projections. The official FP8 checkpoint uses E4M3
+weights with two-dimensional 128x128 inverse block scales. The converter also
+supports checkpoints without a safetensors index by discovering layer shards.
+It consumes all three layouts directly and never materializes a complete
+dequantized model.
 """
 
 from __future__ import annotations
@@ -53,7 +56,11 @@ def unpack_nvfp4(packed: torch.Tensor) -> torch.Tensor:
 
 
 def fp8_weight_chunk(
-    weight: torch.Tensor, scale: torch.Tensor, start: int, end: int
+    weight: torch.Tensor,
+    scale: torch.Tensor,
+    start: int,
+    end: int,
+    block_size: tuple[int, int] | None = None,
 ) -> torch.Tensor:
     chunk = weight[start:end].float()
     scale_f32 = scale.float()
@@ -61,6 +68,22 @@ def fp8_weight_chunk(
         return chunk * scale_f32
     if scale_f32.ndim == 1 and scale_f32.shape[0] == weight.shape[0]:
         return chunk * scale_f32[start:end, None]
+    if scale_f32.ndim == 2 and block_size is not None:
+        row_block, column_block = block_size
+        expected = (
+            (weight.shape[0] + row_block - 1) // row_block,
+            (weight.shape[1] + column_block - 1) // column_block,
+        )
+        if tuple(scale_f32.shape) != expected:
+            raise ValueError(
+                "FP8 block scale layout mismatch: "
+                f"weight={tuple(weight.shape)} scale={tuple(scale.shape)} "
+                f"expected={expected}"
+            )
+        row_indices = torch.arange(start, end) // row_block
+        column_indices = torch.arange(weight.shape[1]) // column_block
+        expanded = scale_f32[row_indices][:, column_indices]
+        return chunk * expanded
     raise ValueError(f"unsupported FP8 weight_scale shape {tuple(scale.shape)}")
 
 
@@ -115,12 +138,23 @@ def build_lora_pair(
                 return nvfp4_weight_chunk(weight, block_scale, global_scale, start, end)
 
         elif weight.dtype in (torch.float8_e4m3fn, torch.float8_e5m2):
-            scale = handle.get_tensor(f"{module}.weight_scale")
+            keys = set(handle.keys())
+            inverse_scale_name = f"{module}.weight_scale_inv"
+            scale_name = f"{module}.weight_scale"
+            if inverse_scale_name in keys:
+                scale = handle.get_tensor(inverse_scale_name)
+                block_size = (128, 128)
+                quant = "fp8_block_128x128"
+            elif scale_name in keys:
+                scale = handle.get_tensor(scale_name)
+                block_size = None
+                quant = "fp8"
+            else:
+                raise KeyError(f"FP8 scale not found for {module}")
             input_size = weight.shape[1]
-            quant = "fp8"
 
             def get_chunk(start: int, end: int) -> torch.Tensor:
-                return fp8_weight_chunk(weight, scale, start, end)
+                return fp8_weight_chunk(weight, scale, start, end, block_size)
 
         elif weight.dtype in (torch.float16, torch.bfloat16, torch.float32):
             input_size = weight.shape[1]
@@ -153,14 +187,39 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def discover_weight_map(model: Path) -> tuple[dict[str, str], str, str | None]:
+    index_path = model / "model.safetensors.index.json"
+    if index_path.exists():
+        index: dict[str, Any] = json.loads(index_path.read_text())
+        weight_map: dict[str, str] = index["weight_map"]
+        return weight_map, "model.safetensors.index.json", sha256(index_path)
+
+    weight_map = {}
+    shards = sorted(model.glob("*.safetensors"))
+    if not shards:
+        raise FileNotFoundError(f"no safetensors shards found under {model}")
+    for shard in shards:
+        with safe_open(shard, framework="pt", device="cpu") as handle:
+            for key in handle.keys():  # noqa: SIM118 - safe_open is not iterable
+                if not key.endswith(".weight"):
+                    continue
+                if key in weight_map:
+                    raise ValueError(f"duplicate weight across shards: {key}")
+                weight_map[key] = shard.name
+    return weight_map, "safetensors_scan", None
+
+
+def mapping_sha256(weight_map: dict[str, str]) -> str:
+    rendered = json.dumps(weight_map, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(rendered.encode()).hexdigest()
+
+
 def main() -> None:
     args = parse_args()
     if args.row_chunk <= 0:
         raise SystemExit("--row-chunk must be positive")
 
-    index_path = args.model / "model.safetensors.index.json"
-    index: dict[str, Any] = json.loads(index_path.read_text())
-    weight_map: dict[str, str] = index["weight_map"]
+    weight_map, weight_map_source, index_sha256 = discover_weight_map(args.model)
 
     with safe_open(args.directions, framework="pt", device="cpu") as handle:
         metadata = handle.metadata() or {}
@@ -244,7 +303,9 @@ def main() -> None:
 
     manifest = {
         "model": str(args.model),
-        "model_index_sha256": sha256(index_path),
+        "model_index_sha256": index_sha256,
+        "model_weight_map_source": weight_map_source,
+        "model_weight_map_sha256": mapping_sha256(weight_map),
         "directions": str(args.directions),
         "directions_sha256": sha256(args.directions),
         "adapter_sha256": sha256(adapter_path),

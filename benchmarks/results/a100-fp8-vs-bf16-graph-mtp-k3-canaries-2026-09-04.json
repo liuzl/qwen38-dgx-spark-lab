@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "left_label": "a100-fp8-graph-mtp-k3-2026-09-04",
+  "right_label": "a100-bf16-graph-mtp-k3-2026-09-04",
+  "all_exact_match": true,
+  "canaries": [
+    {
+      "name": "code",
+      "exact_match": true,
+      "left_sha256": "5ebaa216443795f82ed068b921f84d8926abee8db919ce654680479de04ffedd",
+      "right_sha256": "5ebaa216443795f82ed068b921f84d8926abee8db919ce654680479de04ffedd",
+      "left_chars": 628,
+      "right_chars": 628,
+      "first_difference_char": null
+    },
+    {
+      "name": "chinese_reasoning",
+      "exact_match": true,
+      "left_sha256": "649b2cf3f2353eebc80352ee4cdab600eaf2ef29c3e96ba345801b296d7e931f",
+      "right_sha256": "649b2cf3f2353eebc80352ee4cdab600eaf2ef29c3e96ba345801b296d7e931f",
+      "left_chars": 465,
+      "right_chars": 465,
+      "first_difference_char": null
+    },
+    {
+      "name": "multilingual",
+      "exact_match": true,
+      "left_sha256": "7a25611638fdc41c7be103249a019faed74f05354b739605961ac08bd5af4901",
+      "right_sha256": "7a25611638fdc41c7be103249a019faed74f05354b739605961ac08bd5af4901",
+      "left_chars": 41,
+      "right_chars": 41,
+      "first_difference_char": null
+    },
+    {
+      "name": "structured",
+      "exact_match": true,
+      "left_sha256": "225074fac9d2cb47ae54a8382c263b388665163a00bb30e1222a3de339c1b553",
+      "right_sha256": "225074fac9d2cb47ae54a8382c263b388665163a00bb30e1222a3de339c1b553",
+      "left_chars": 81,
+      "right_chars": 81,
+      "first_difference_char": null
+    }
+  ]
+}

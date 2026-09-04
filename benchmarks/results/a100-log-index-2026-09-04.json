@@ -1,0 +1,715 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-04",
+  "remote_paths_included": false,
+  "raw_responses_published": false,
+  "entries": [
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-api-smoke.json",
+      "bytes": 294,
+      "sha256": "3a26e058e9ee022120d29510cc8d5670b34528b0146371ac0ffe6405c3425660",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-benchmark.json",
+      "bytes": 5795,
+      "sha256": "cc9be62842057b8434c6ece0d91828732ca86659489b7b1aa83d9819dd6bff75",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-canaries.raw.json",
+      "bytes": 3229,
+      "sha256": "92a1cec0c07216c907c0767320f9f1162bf1aa925b7b5336720543458790681c",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-canaries.summary.json",
+      "bytes": 2003,
+      "sha256": "c284a88f9787dc6f1d42bd1760793691387f00307aeb1f777e2d98e360fae4fc",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-container-status.json",
+      "bytes": 21743,
+      "sha256": "20e44071da0100781b857d91cc0026c9d0a14539e7c84ae583e857d2b5a978d3",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-environment.json",
+      "bytes": 2600,
+      "sha256": "2ed276f5b1170b6feb2b2158bd460ac017fe970226a5ca4bd47e783eae7ed6a3",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-environment.prelaunch.json",
+      "bytes": 2599,
+      "sha256": "6e63f6647bfcb26d8668a74c2e4d3019c4c73e05c556c8c03b01705b2f619466",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-metrics.prom",
+      "bytes": 63643,
+      "sha256": "13fb5c3f22e78a3f9e4d97ee510973b19ac1040c503c22770c63991d21da4a01",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-server.log",
+      "bytes": 40071,
+      "sha256": "b4b714de7c4e3696a91019f424e0292a9b4b3a57083ebe2fbb265abb637992e7",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-stability.json",
+      "bytes": 328,
+      "sha256": "5cae2cad90a2f09e95d641913594b44241c6821a5a937f3eed6daa0158d636e3",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-bf16-graph-mtp-k3-2026-09-04-telemetry.json",
+      "bytes": 53096,
+      "sha256": "ba7e3bbbf31a07a0aa22e08fa7365cd87f4a68c5a76dd507c98637d08cbc18dd",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-api-smoke.json",
+      "bytes": 293,
+      "sha256": "c8bbce32aae4550a19387bb978c3ae41884a74ab836bcb41267ef3b95e8b345d",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-benchmark.json",
+      "bytes": 5807,
+      "sha256": "23110b3d8ea31859ea9c96a931c7a3065ebb52f0197349ecc97813ca9c580207",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-canaries.raw.json",
+      "bytes": 3169,
+      "sha256": "351ebbc7e2ea21c6d10a34fcb604241791423e86c30228793a5421f6e7df2e87",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-canaries.summary.json",
+      "bytes": 2029,
+      "sha256": "e92d5a6e85152f1475ba5cd36218c603ddda014d87c1bd76df9e27d33ed70d97",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-container-status.json",
+      "bytes": 21646,
+      "sha256": "ca7b8d659f483e23a0da6ff95c272da9990de01b01bbeb444896a81bc4e5e177",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-environment.json",
+      "bytes": 2604,
+      "sha256": "674a1b630912e0b1ee0af24b7bf28f2f509c699de244e1fdaa4f7ddb7a5cdf83",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-environment.prelaunch.json",
+      "bytes": 2603,
+      "sha256": "4acaea5ae10978e79f2d094452aa9014f3e9921364e4fd19db862db124008163",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-metrics.prom",
+      "bytes": 60783,
+      "sha256": "ad9eeb5875e959e991d1a7dc1ebb3140c325b96ad61dc7d635b254ffdc011f25",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-server.log",
+      "bytes": 40497,
+      "sha256": "5f735ebf05cf664846e030e362bb216511bd7ed2c24a7e0b089ea92e743d33cb",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-stability.json",
+      "bytes": 326,
+      "sha256": "58a9b42e9792ddb37ee7994368bbfd2a18890d08446759372f85b2a881513b3f",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-ar-2026-09-03-telemetry.json",
+      "bytes": 66308,
+      "sha256": "ffe42b982064fde2bf82ba7b122d3247b1a4b33f59422f73bfaea873dc5e4d57",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-api-smoke.json",
+      "bytes": 293,
+      "sha256": "c8bbce32aae4550a19387bb978c3ae41884a74ab836bcb41267ef3b95e8b345d",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-benchmark.json",
+      "bytes": 5808,
+      "sha256": "adfac43c7c84c89a45b531ea33465bae1ea1564a553462b9458f0dc722140c1f",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-canaries.raw.json",
+      "bytes": 3229,
+      "sha256": "8d5ba0bfa1f7b31d56303955d6f1c8a4a94249c1e745df7dae49498a1c437e0a",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-canaries.summary.json",
+      "bytes": 2002,
+      "sha256": "bf6e3f34bbb0dd76bdec67739a0a9f50c6993910e0eda6667bc456d80a718dc6",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-container-status.json",
+      "bytes": 21804,
+      "sha256": "7c96142cd176b062427c96a064c7db18963708904a130f1017085f3ba9c75484",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-environment.json",
+      "bytes": 2604,
+      "sha256": "cc2751b83d3c5562f3f5266128380ef76c4b0e1dea49f0d1b0090bfd08130fa1",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-environment.prelaunch.json",
+      "bytes": 2603,
+      "sha256": "e5a8a3809b84ca259d3ee70a7fed8b9a27130bb28809f33de8a28dc2b9fa79c4",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-metrics.prom",
+      "bytes": 62721,
+      "sha256": "ce560003d056963cd502d31a1ab8eb9d36d3fd29964b988b2aef1d74d8b95b8e",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-server.log",
+      "bytes": 46400,
+      "sha256": "876f17821b3649ff9fa97617d7225e68090d1117415c261fdcb5c70936da08c5",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-stability.json",
+      "bytes": 327,
+      "sha256": "4cd340428fdfeabe5728aad3ab963f4f77a68f76de135b072d094a756c472393",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k1-2026-09-04-telemetry.json",
+      "bytes": 53214,
+      "sha256": "fa722431854309f54383404fd086b673135ba0729209ee2b682d10b29f57ce0a",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-api-smoke.json",
+      "bytes": 293,
+      "sha256": "c8bbce32aae4550a19387bb978c3ae41884a74ab836bcb41267ef3b95e8b345d",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-benchmark.json",
+      "bytes": 5805,
+      "sha256": "86ab8f270bef5a223eaf3f2f1e0fb0c3804ae012e91263730d5b6f88b5fc02ce",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-canaries.raw.json",
+      "bytes": 3228,
+      "sha256": "ee0135bdcaf9a2d49053900b72d486cc09d93b82d1516a93b8c40bc3649f8efb",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-canaries.summary.json",
+      "bytes": 2002,
+      "sha256": "98b81ecd7e10ed1e6c214a30f457fa7ca241df667d9916a5518bb950727489b9",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-container-status.json",
+      "bytes": 21804,
+      "sha256": "f1be99592c98a760877d566663958d78a2ccd47d9bfe4c54a1eb2842260d87bc",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-environment.json",
+      "bytes": 2604,
+      "sha256": "3d102699fd8748222d52c4d4d586fcc9fbdfd1b25a9daa8c7e3bcae13947c57c",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-environment.prelaunch.json",
+      "bytes": 2603,
+      "sha256": "5f1342e0f26a0e808def2dcb40e9e16e608c843af45daf97605ca447591db0f6",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-metrics.prom",
+      "bytes": 62984,
+      "sha256": "715fbdf97f3e57dc4ee570b132480ac235b2068df18d87a16095e24c1cbef435",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-server.log",
+      "bytes": 41703,
+      "sha256": "e8eab5b4144e0b933286d250e81e3ac89dc46dcfe7a5881b3ce5f506f62ca22c",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-stability.json",
+      "bytes": 326,
+      "sha256": "118a4884a6e70e166f93159d88ddee330fe9f86184cbf1c4511d83c9dde87a40",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k2-2026-09-04-telemetry.json",
+      "bytes": 53176,
+      "sha256": "7949c46c40cf85b241c14d95ebcef1b33aebf22e46d9532d49d8bd9536776a53",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-api-smoke.json",
+      "bytes": 293,
+      "sha256": "c8bbce32aae4550a19387bb978c3ae41884a74ab836bcb41267ef3b95e8b345d",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-benchmark.json",
+      "bytes": 5800,
+      "sha256": "11c4552e693de23876b3e171e63f98cf9874349d873ae1276a26f80d2807e3d1",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-canaries.raw.json",
+      "bytes": 3227,
+      "sha256": "1b528a646e1e18a33518e122f8c62a2d9b1b45279817724b7700575d430f1e2e",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-canaries.summary.json",
+      "bytes": 2002,
+      "sha256": "fc908d660810ec87d1b970ca019e90b8ea3b36b17040756d04afcd881625d560",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-container-status.json",
+      "bytes": 21855,
+      "sha256": "0add7b8739c23b73ea16efb97c75bf6fa5fa1df740e980ab012dea90eb5d83bb",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-environment.json",
+      "bytes": 2604,
+      "sha256": "e303b3a67ced5728a6d014ad248430150ef8d15689896d9b2be1bf2fbb7600f0",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-environment.prelaunch.json",
+      "bytes": 2603,
+      "sha256": "4da40e26de6d0824e1b759bd8bd42fc754ac089fd3ba312acca67b0232d037ba",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-metrics.prom",
+      "bytes": 63235,
+      "sha256": "b227de0853bb928e3fd246c0e96ceb1942770fb0de1d496f107d05712102051b",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-server.log",
+      "bytes": 42786,
+      "sha256": "c63b7cafe8826a60d0dfd39e9509747e33704efb2e107aad2e7923153bc4fd65",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-stability.json",
+      "bytes": 326,
+      "sha256": "d78b96670d07ea2d57814ce9bce638bc14791de92fac775eb05fb02420eb49a5",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-eager-mtp-k3-2026-09-04-telemetry.json",
+      "bytes": 53152,
+      "sha256": "55440a363fe9b74db6f7ad6bbaf2a94c62e40c49a3f22ec9cb450cc331d89421",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-api-smoke.json",
+      "bytes": 293,
+      "sha256": "c8bbce32aae4550a19387bb978c3ae41884a74ab836bcb41267ef3b95e8b345d",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-benchmark.json",
+      "bytes": 5795,
+      "sha256": "7e84ce7c27ab970f5eb95ebf34b6b4f5b42545756abe04ab15bbcfa2cd5eb095",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-canaries.raw.json",
+      "bytes": 3226,
+      "sha256": "8c36bf9bcdbd5d1336323a647b92cd71c879b549c6113ff93088d34a77c517f0",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-canaries.summary.json",
+      "bytes": 2002,
+      "sha256": "860568b9aef26516f623746d928cc8471a29f83c81cb032b7f01ed8ae47a2b38",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-container-status.json",
+      "bytes": 21741,
+      "sha256": "6a4bdc35b2d9002fd351a747543bbb0f1556c7ea8d7b425e6e6af1ea3c9fa625",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-environment.json",
+      "bytes": 2604,
+      "sha256": "719147a5de899b32bcf4ac69fb3540c31665af566f758b265815e641fe489adb",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-environment.prelaunch.json",
+      "bytes": 2603,
+      "sha256": "cb791869971f9790df2b7b4fb94290c693e8bb2e88a62b11aa6a9d7dca8cda72",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-metrics.prom",
+      "bytes": 63230,
+      "sha256": "6299249c661562fda60c5450bc1206cc0f941da23c41300a9df3f7ac8634075b",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-server.log",
+      "bytes": 42430,
+      "sha256": "4ae17a4d196bb13437d251930e1701e93d698b0fe6af6e708688ea75b5902a6c",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-stability.json",
+      "bytes": 326,
+      "sha256": "e2cb1066548d72211a1cac9806e23a17cb76395bf0f2340f97dada881d86ada1",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-2026-09-04-telemetry.json",
+      "bytes": 53316,
+      "sha256": "1c48c48f98ce125528670d3dff904208a4cbcde19ea7d4441421bf1b17c39ce7",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-api-smoke.json",
+      "bytes": 293,
+      "sha256": "c8bbce32aae4550a19387bb978c3ae41884a74ab836bcb41267ef3b95e8b345d",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-benchmark.json",
+      "bytes": 5798,
+      "sha256": "f420f04cd2fa811a755b509c5df7d93836881771fd31360183a13f0fc8b4d574",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-canaries.raw.json",
+      "bytes": 3232,
+      "sha256": "21d06fcb2ecd4e1163d53de96cf1bb876766865fe5418358158612d9c3e4b1b1",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-canaries.summary.json",
+      "bytes": 2008,
+      "sha256": "44afaf422579b2e393e9652d6a11954006171ae929430d41a604c49d4f750608",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-container-status.json",
+      "bytes": 21741,
+      "sha256": "5ad761a5d23fef3fc5de43ae37010bef18a8f04034292091d6cb1e089b7aeb49",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-environment.json",
+      "bytes": 2604,
+      "sha256": "89e0818f8f5a37582b409fa9e2dbed2c50ce1241214160252fa6abbb584b3a82",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-environment.prelaunch.json",
+      "bytes": 2603,
+      "sha256": "09c2d49dafb8ccc9a25d3e89a142a1b39f0e070646ab548eecb02b31faefb959",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-metrics.prom",
+      "bytes": 63244,
+      "sha256": "17dd99359333f9ae12e4c4e0d01d55cffce6f72fd9b9e5f76c2764c7734da3f4",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-server.log",
+      "bytes": 42711,
+      "sha256": "707f47d951e3783f59f23fcb40eddc1550a85bd94d7ae2b56abc8750246a009b",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-stability.json",
+      "bytes": 326,
+      "sha256": "c17535ebf949c27704525333e7e7529e545c651f6806316fae521de0c1546e3e",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-bt16k-2026-09-04-telemetry.json",
+      "bytes": 40112,
+      "sha256": "5ccd35a77773f772fb609c957fb1985ca9c6b2b9fe1a1d3cdef8c184c63e696e",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-adapter-benchmark.json",
+      "bytes": 5813,
+      "sha256": "69ec66db85fb8b50165d27d06be09b3fb3d91daad7bcbb33cbe72e886583a25d",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-adapter-canaries.raw.json",
+      "bytes": 3071,
+      "sha256": "cdd3a133e5d58bfd675fa1575c0b578d782e461bed34213e4016418564c99fa2",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-adapter-canaries.summary.json",
+      "bytes": 2022,
+      "sha256": "71147aabfda26ac615861b31ed6a7e8cc0077871faa276564c4471a5bcc0fa7f",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-adapter-stability.json",
+      "bytes": 329,
+      "sha256": "b71df24206fc4d616ad552d1a455af54856e90a3184c7c905973d84eac89c82f",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-api-smoke.json",
+      "bytes": 576,
+      "sha256": "745378767e15b1c59c86c885ad0b7f55b56914d8a2eb2f9e8d217f1eaf916201",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-base-benchmark.json",
+      "bytes": 5808,
+      "sha256": "77580eba78230746616c6c8e41e8c9117e523edba80e5a0d877483c5a691ea08",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-base-canaries.raw.json",
+      "bytes": 3235,
+      "sha256": "841c4b0a0ce18dcac3acf872d51d20ca55fafb08b81d342a037615e09d101995",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-base-canaries.summary.json",
+      "bytes": 2019,
+      "sha256": "55c8d22ef7867b790b66d38aa528b96287e7da6cc74de5d5e199d9904fb30945",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-base-stability.json",
+      "bytes": 318,
+      "sha256": "30b2d9eeffa65781eef5c137955f82ce0222cfdd5eb8f6b031b41dc6bbdebd6e",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-cache-isolation.json",
+      "bytes": 309,
+      "sha256": "a360f28f3a4e0df92e66f9d40970563546b0966201f21c161f2b45e536ebf5b8",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-container-status.json",
+      "bytes": 22648,
+      "sha256": "6ba18fea002c7bc589f86b6de08655bc02d246983ade4ddbb1ad33af4ef3332d",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-environment.json",
+      "bytes": 2604,
+      "sha256": "08b950a3b7d0102ce81525e9b64dc3fcdd9123807aeab538abeac76eddb1e0d8",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-environment.prelaunch.json",
+      "bytes": 2603,
+      "sha256": "1cbf3e8e0e163916ad1c64315f2ecbce5ffebaaee03cbc8c2ccafcfcf2271c72",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-metrics.prom",
+      "bytes": 60315,
+      "sha256": "29a4051cdd357375515cd73677e4039b72563e649b123b1db89f0fbb968f35fc",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-server.log",
+      "bytes": 57539,
+      "sha256": "a589da3eee500ac3cd996f7a87617037f71df502ea20c4b537d59710a52e2ded",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-fp8-graph-mtp-k3-native-lora-2026-09-04-telemetry.json",
+      "bytes": 78917,
+      "sha256": "f7fcce507530809a8fb9c39e4734f7868394514823df13afab2b9d406d58633f",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "a100-native-lora-safety-server.log",
+      "bytes": 55249,
+      "sha256": "a3c9c446b6c09a412751e6383d14d4ed28ae945e954979c2bceedf0d002a186d",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "classifier_labels_lambda_0.0.jsonl",
+      "bytes": 14719,
+      "sha256": "786e80420b806898571ac1f0287abef2ee53bbf4c9032d4934ae8b6167392254",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "classifier_summary.json",
+      "bytes": 6546,
+      "sha256": "1b4a1f26462818d3044d5131195946bbcda648cda8159fa6a63700ce1016ebb9",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "metadata.json",
+      "bytes": 557,
+      "sha256": "de7688d097cf78ad97a45403d8801a27523dc51dc5db41647e2f0df9085a0b99",
+      "contains_private_or_response_data": false,
+      "published": false
+    },
+    {
+      "file": "responses_lambda_0.0.jsonl",
+      "bytes": 340285,
+      "sha256": "cfa1cb67b109d197c22063fe914a23df0ee770fa660ec9d6b0d2683d9ceecf28",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "strongreject_small_dataset.csv",
+      "bytes": 11677,
+      "sha256": "3051340e3e89a3598d764dde497d5fcda80e258ac05cc35e6bd87228ac3d467c",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "strongreject_string_matching.txt",
+      "bytes": 806,
+      "sha256": "9e7129b46498f807b3be954058ef61537cea5fc6e31bf626c65555b2964f3e1d",
+      "contains_private_or_response_data": true,
+      "published": false
+    },
+    {
+      "file": "summary.json",
+      "bytes": 2293,
+      "sha256": "0f19c78bab45328a3c4d972150ec9197d7a08702c83fa027a1544301591042a3",
+      "contains_private_or_response_data": false,
+      "published": false
+    }
+  ]
+}

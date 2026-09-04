@@ -51,8 +51,11 @@ measured revision its three shards contained approximately:
 | total | 20.42 |
 
 The converter reads static-FP8 output weights directly. For packed NVFP4 it
-decodes E2M1 nibbles, applies per-block FP8 scales and the global scale, and
-accumulates `r^T W` in row chunks so a full dequantized model is never resident.
+decodes E2M1 nibbles, applies per-block FP8 scales and the global scale. For the
+official FP8 checkpoint it expands E4M3 `weight_scale_inv` values over their
+128x128 blocks and can discover weights from layer shards when no safetensors
+index exists. Every path accumulates `r^T W` in row chunks so a full
+dequantized model is never resident.
 
 ## Important approximation
 

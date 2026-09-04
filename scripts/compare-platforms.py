@@ -19,10 +19,15 @@ def index_cases(result: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def metrics(case: dict[str, Any]) -> dict[str, Any]:
+    decode_rate = case["request_decode_tok_s_mean"]
+    itl_ms = case.get("itl_ms_mean")
+    if itl_ms is None and decode_rate:
+        itl_ms = round(1000 / decode_rate, 4)
     return {
         "prompt_tokens": case["requests"][0]["prompt_tokens"],
         "aggregate_output_tok_s": case["aggregate_output_tok_s"],
-        "request_decode_tok_s_mean": case["request_decode_tok_s_mean"],
+        "request_decode_tok_s_mean": decode_rate,
+        "itl_ms_mean": itl_ms,
         "ttft_s_mean": case["ttft_s_mean"],
         "latency_s_mean": case["latency_s_mean"],
         "failures": len(case["failures"]),
@@ -67,6 +72,7 @@ def main() -> None:
                         cand["request_decode_tok_s_mean"],
                         ref["request_decode_tok_s_mean"],
                     ),
+                    "itl_ms_mean": percent(cand["itl_ms_mean"], ref["itl_ms_mean"]),
                     "ttft_s_mean": percent(cand["ttft_s_mean"], ref["ttft_s_mean"]),
                     "latency_s_mean": percent(
                         cand["latency_s_mean"], ref["latency_s_mean"]
