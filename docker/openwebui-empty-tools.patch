@@ -1,0 +1,9 @@
+--- a/open_webui/routers/openai.py
++++ b/open_webui/routers/openai.py
+@@ -1617,1 +1617,6 @@
++    # vLLM rejects an explicitly empty tools array (including after fallback).
++    if payload.get('tools') == []:
++        payload.pop('tools')
++        payload.pop('tool_choice', None)
++        payload.pop('parallel_tool_calls', None)
+     payload = JSONCodec.dumps(payload)
