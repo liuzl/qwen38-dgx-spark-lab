@@ -63,6 +63,11 @@ Remote HTTP media fetching and video remain disabled; public clients use data
 URLs or protocol-native base64. The same 24 GiB KV pool and 128K text limit are
 retained, with image tokens sharing the request context budget.
 
+The [2026-09-06 image-serving tuning](docs/a100-performance-tuning.md) selects
+MTP K7 with the existing 16K batch budget. In the controlled three-repeat
+matrix, base/adapter short C1 decode rises from 121.74/111.45 to 157.46/146.44
+tok/s; C8 aggregate gains are smaller, and long-input TTFT remains a limitation.
+
 See [DGX Spark vs Apple M3 Max](docs/cross-platform-comparison.md) for the
 protocol, raw artifacts, interpretation, and limits. Apple setup and the ANE
 memory boundary are in the [Apple Silicon track](docs/apple-silicon.md).
