@@ -31,7 +31,22 @@ def main():
     parser.add_argument("--image", required=True, type=Path)
     parser.add_argument("--label", required=True)
     parser.add_argument("--repetitions", type=int, default=3)
+    parser.add_argument(
+        "--models",
+        default="qwen3.8-27b,qwen3.8-27b-uncensored",
+        help="comma-separated served model names",
+    )
+    parser.add_argument(
+        "--cases",
+        default="text_1k_c1:19:1,text_1k_c8:19:8,text_16k_c1:307:1,image_1k_c1:19:1",
+        help="comma-separated name:prompt_repeats:concurrency; names starting "
+        "with image_ attach the image",
+    )
     args = parser.parse_args()
+    cases = []
+    for item in args.cases.split(","):
+        name, count, concurrency = item.split(":")
+        cases.append((name, int(count), int(concurrency), name.startswith("image_")))
     spec = importlib.util.spec_from_file_location(
         "shared_bench", Path(__file__).with_name("benchmark-openai.py")
     )
@@ -41,14 +56,9 @@ def main():
     original = bench.prompt_for
     data = "data:image/png;base64," + base64.b64encode(args.image.read_bytes()).decode()
     rows = []
-    for model in ("qwen3.8-27b", "qwen3.8-27b-uncensored"):
+    for model in args.models.split(","):
         for repetition in range(args.repetitions):
-            for name, count, concurrency, image in (
-                ("text_1k_c1", 19, 1, False),
-                ("text_1k_c8", 19, 8, False),
-                ("text_16k_c1", 307, 1, False),
-                ("image_1k_c1", 19, 1, True),
-            ):
+            for name, count, concurrency, image in cases:
 
                 def prompt(
                     case,

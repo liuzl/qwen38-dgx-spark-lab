@@ -38,12 +38,19 @@ max_num_seqs="${MAX_NUM_SEQS:-8}"
 max_num_batched_tokens="${MAX_NUM_BATCHED_TOKENS:-8192}"
 gpu_memory_utilization="${GPU_MEMORY_UTILIZATION:-0.90}"
 docker_api_version="${DOCKER_API_VERSION:-}"
+# Space-separated NAME=VALUE pairs passed into the container, e.g. experimental
+# runtime toggles such as VLLM_USE_V2_MODEL_RUNNER=1.
+extra_docker_env="${EXTRA_DOCKER_ENV:-}"
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 mkdir -p "$HF_CACHE" "$VLLM_CACHE" "$LOG_DIR"
 
 docker_args=(docker)
 mount_args=()
+extra_env_args=()
+for pair in $extra_docker_env; do
+  extra_env_args+=(-e "$pair")
+done
 if [[ -n "$docker_api_version" ]]; then
   export DOCKER_API_VERSION="$docker_api_version"
 fi
@@ -149,6 +156,7 @@ fi
   -v "$LOG_DIR:/run-logs" \
   -v "$repo_dir:/lab:ro" \
   "${mount_args[@]}" \
+  "${extra_env_args[@]}" \
   "$IMAGE" \
   "${engine_args[@]}" \
   >"$LOG_DIR/${container}.launch.log"

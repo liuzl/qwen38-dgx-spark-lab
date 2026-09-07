@@ -87,3 +87,47 @@ line with the isolated arm. A 115,247-token text-plus-image adapter request
 passed its semantic check in 66.87 seconds. GPU use after that shape was
 71,955 MiB with 9,082 MiB free (including existing co-resident processes).
 This confirms capacity, not a long-prefill speedup.
+
+## Batch-size-dependent MTP depth
+
+The 2026-09-07 experiment tested whether speculative depth should fall as the
+scheduled batch grows. vLLM 0.28.0 has no `disable_by_batch_size`; its
+replacement is `num_speculative_tokens_per_batch_size`, a list of inclusive
+`(range_start, range_end, K)` entries keyed by the number of requests scheduled
+in a step, with `K=0` allowed. `scripts/sweep-a100-mtp-arms.sh` ran each arm in
+a fresh process under the production image profile with 1K prompts at C1, C8,
+C16, and C32, three repetitions, 256 output tokens per request. The static
+K7 C1 and C8 results reproduce the 2026-09-06 arm within 1%.
+
+| Arm | Short C1 decode | C8 aggregate | C16 aggregate | C32 aggregate |
+|---|---:|---:|---:|---:|
+| Static K7 | 157.41 / 146.23 | 354.59 / 331.79 | 393.35 / 364.45 | 375.04 / 350.25 |
+| Static K3 | 121.72 / 111.30 | 340.72 / 317.07 | 395.68 / 370.15 | 423.25 / 393.62 |
+| Static K1 | 74.56 / 62.08 | 277.68 / 250.73 | 354.59 / 325.35 | 401.98 / 373.61 |
+| Dynamic 7/4/2 (1-4/5-16/17-32) | 155.09 / 144.32 | 353.34 / 325.48 | 374.16 / 349.88 | 373.77 / 347.87 |
+| Dynamic 7/3/0 (1-4/5-16/17-32) | 143.76 / 144.34 | 336.40 / 313.87 | 393.02 / 367.31 | 328.70 / 302.13 |
+| Static K7, V2 model runner | 159.58 / 148.09 | 357.01 / 332.31 | 393.56 / 364.14 | 376.32 / 350.91 |
+
+Static results confirm the premise: the best depth falls with batch size. K7
+leads at C1 and C8, K3 and K7 tie at C16, and K3 beats K7 by about 13% / 12% at
+C32. K1 is also faster than K7 at C32. Disabling speculation entirely at high
+batch is the worst option measured: the `K=0` range is 22% below static K3.
+
+The dynamic mechanism does not deliver that gain on this pinned runtime.
+Enabling a schedule makes vLLM 0.28.0 override the CUDA Graph mode from
+`FULL_AND_PIECEWISE` to `PIECEWISE`; the warning suggests
+`VLLM_USE_V2_MODEL_RUNNER=1` to keep full graphs. Under the default runner the
+7/4/2 schedule matched static K7 at C1 but reached only 373.77 tok/s at C32,
+below static K3, because the piecewise penalty exceeds the drafting savings.
+Under the V2 runner the static K7 control reproduced the baseline within 2%,
+but the dynamic arm failed at CUDA Graph capture with
+`assert 0 < num_reqs <= num_tokens` in `InputBatch.make_dummy`, called from the
+V2 speculator capture path. Raw server logs remain on the test node.
+
+Decision: keep static K7 for the current interactive-first service. Dynamic
+depth is not usable on vLLM 0.28.0 and should be retested only after a runtime
+upgrade. If the workload shifts to sustained C16-plus multi-user load, switch
+to static K3 or K4 rather than a schedule; that trade costs about 23% of
+single-stream decode for about 13% more C32 aggregate throughput. Raw
+measurements are the `a100-mtp-batch-*-2026-09-07.json` files in
+`benchmarks/results/`; the aborted V2 static K3 control has no result file.

@@ -67,6 +67,8 @@ The [2026-09-06 image-serving tuning](docs/a100-performance-tuning.md) selects
 MTP K7 with the existing 16K batch budget. In the controlled three-repeat
 matrix, base/adapter short C1 decode rises from 121.74/111.45 to 157.46/146.44
 tok/s; C8 aggregate gains are smaller, and long-input TTFT remains a limitation.
+A 2026-09-07 sweep found K3 faster than K7 at C32 but ruled out vLLM 0.28.0's
+dynamic depth schedule, so K7 remains static.
 
 See [DGX Spark vs Apple M3 Max](docs/cross-platform-comparison.md) for the
 protocol, raw artifacts, interpretation, and limits. Apple setup and the ANE
