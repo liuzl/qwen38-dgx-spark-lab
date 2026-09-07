@@ -221,7 +221,7 @@ def render_apps() -> bytes:
         "vox_public": VOX_PUBLIC_URL,
         "beszel": BESZEL_PROBE_URL,
         "llm": f"http://{HOST}:{PORT}/healthz",
-        "qwen": "http://127.0.0.1:18102/health",
+        "qwen": f"{TARGET}/health",
         "dgx": "http://127.0.0.1:11000/",
     }
     with ThreadPoolExecutor(max_workers=len(targets)) as executor:

@@ -54,7 +54,7 @@ Then open `http://127.0.0.1:18103`.
 |---|---|---|
 | `PANEL_HOST` | `127.0.0.1` | Listen address |
 | `PANEL_PORT` | `18103` | Listen port |
-| `VLLM_BASE_URL` | `http://127.0.0.1:18102` | Read-only vLLM target |
+| `VLLM_BASE_URL` | `http://127.0.0.1:18102` | Read-only vLLM target; the service-directory Qwen probe uses this URL |
 | `PANEL_DB` | `panel/panel.db` | SQLite history path |
 | `PANEL_POLL_SECONDS` | `2` | Live sampling interval |
 | `PANEL_HISTORY_DAYS` | `14` | Minute-history retention |
