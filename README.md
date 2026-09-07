@@ -67,6 +67,8 @@ The [2026-09-06 image-serving tuning](docs/a100-performance-tuning.md) selects
 MTP K7 with the existing 16K batch budget. In the controlled three-repeat
 matrix, base/adapter short C1 decode rises from 121.74/111.45 to 157.46/146.44
 tok/s; C8 aggregate gains are smaller, and long-input TTFT remains a limitation.
+The [INT8 W8A8 prefill plan](docs/a100-prefill-int8-plan.md) is the
+next controlled experiment against that TTFT limitation; it has no result yet.
 A 2026-09-07 sweep found K3 faster than K7 at C32 but ruled out vLLM 0.28.0's
 dynamic depth schedule, so K7 remains static.
 
