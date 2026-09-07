@@ -37,6 +37,7 @@ max_model_len="${MAX_MODEL_LEN:-32768}"
 max_num_seqs="${MAX_NUM_SEQS:-8}"
 max_num_batched_tokens="${MAX_NUM_BATCHED_TOKENS:-8192}"
 gpu_memory_utilization="${GPU_MEMORY_UTILIZATION:-0.90}"
+max_cudagraph_capture_size="${MAX_CUDAGRAPH_CAPTURE_SIZE:-}"
 docker_api_version="${DOCKER_API_VERSION:-}"
 # Space-separated NAME=VALUE pairs passed into the container, e.g. experimental
 # runtime toggles such as VLLM_USE_V2_MODEL_RUNNER=1.
@@ -126,6 +127,9 @@ if [[ -n "$kv_cache_bytes" ]]; then
 fi
 if [[ -n "$speculative_config" ]]; then
   engine_args+=(--speculative-config "$speculative_config")
+fi
+if [[ -n "$max_cudagraph_capture_size" ]]; then
+  engine_args+=(--compilation-config "{\"max_cudagraph_capture_size\": $max_cudagraph_capture_size}")
 fi
 if [[ -n "$adapter_dir" ]]; then
   engine_args+=(

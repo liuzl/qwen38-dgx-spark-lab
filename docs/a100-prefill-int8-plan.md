@@ -101,11 +101,16 @@ BF16 while keeping FP8-class memory. That is the expectation, not a claim.
 1. Download the pinned revision into the shared HF cache
    (`/hf-cache/hub`) via a throwaway CPU-only container; the production
    container is intentionally offline. Started 2026-09-08.
-2. Verify the snapshot: 49 files, `config.json` `quantization_config`
-   matches the description above, `model-mtp.safetensors` present.
-3. Add an INT8 arm definition to `scripts/sweep-a100-mtp-arms.sh` that
-   swaps only the model path and revision, drops `--lora-modules`, and keeps
-   every other production flag.
+2. Verify the snapshot with `scripts/check-a100-int8-snapshot.sh`: 49 files,
+   no incomplete blobs, `quantization_config` matches the description above,
+   `model-mtp.safetensors` present.
+3. `scripts/sweep-a100-int8-arms.sh` defines the Phase 1 arms. It drives
+   `scripts/sweep-a100-mtp-arms.sh`, which now accepts per-arm `KEY=VALUE`
+   overrides on top of the production env and records kernel routing from
+   the server log. The INT8 arms swap only the model path and revision, drop
+   the adapter, pin `DTYPE=bfloat16`, and require `CutlassInt8ScaledMM` in
+   the log; the FP8 control requires `MarlinFP8ScaledMMLinearKernel`. Done
+   2026-09-08, dry-run only.
 
 ## Phase 1: base-alias performance arms (maintenance window)
 
