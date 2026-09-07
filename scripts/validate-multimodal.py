@@ -103,9 +103,7 @@ def main() -> None:
             bearer,
         )
         chat_text = (
-            response.get("choices", [{}])[0]
-            .get("message", {})
-            .get("content", "")
+            response.get("choices", [{}])[0].get("message", {}).get("content", "")
         )
         require_ocr(status, response, model, chat_text, "chat")
 

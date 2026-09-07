@@ -42,7 +42,10 @@ def main():
             for key, values in groups.items()
         }
     for model in ("qwen3.8-27b", "qwen3.8-27b-uncensored"):
-        print(f"\n{model}  (median tok/s; C1=decode, Cn=aggregate; [acceptance incl. warmup])")
+        print(
+            f"\n{model}  "
+            "(median tok/s; C1=decode, Cn=aggregate; [acceptance incl. warmup])"
+        )
         print("arm".ljust(22) + "".join(c.rjust(22) for c in cases))
         for label, rows in table.items():
             cells = []

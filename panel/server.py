@@ -225,7 +225,7 @@ def render_apps() -> bytes:
         "dgx": "http://127.0.0.1:11000/",
     }
     with ThreadPoolExecutor(max_workers=len(targets)) as executor:
-        checks = dict(zip(targets, executor.map(probe, targets.values())))
+        checks = dict(zip(targets, executor.map(probe, targets.values()), strict=True))
 
     qwen_models_url = f"{QWEN_API_URL.rstrip('/')}/v1/models" if QWEN_API_URL else ""
     cards = [
@@ -590,7 +590,7 @@ class Monitor:
             "tpot_p95_ms",
             "e2e_p95_ms",
         )
-        return [dict(zip(keys, row)) for row in rows]
+        return [dict(zip(keys, row, strict=True)) for row in rows]
 
 
 MONITOR: Monitor | None = None
