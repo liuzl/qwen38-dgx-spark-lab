@@ -44,8 +44,10 @@ model="${2:?served model name}"
 base_url="${3:-http://127.0.0.1:18103}"
 EVAL_CONTAINER="${EVAL_CONTAINER:-qwen38-lm-eval}"
 EVAL_DIR="${EVAL_DIR:-/databank/zliu/qwen38-a100/eval}"
-STAGE1="${STAGE1:-mmlu:0:25 truthfulqa_mc2:0:200}"
-CHAT_TASKS="${CHAT_TASKS:-gsm8k:5:300 ifeval:0:200}"
+# Use the "-" form so STAGE1= or CHAT_TASKS= (empty) skips a stage instead of
+# re-applying the default.
+STAGE1="${STAGE1-mmlu:0:25 truthfulqa_mc2:0:200}"
+CHAT_TASKS="${CHAT_TASKS-gsm8k:5:300 ifeval:0:200}"
 NUM_CONCURRENT="${NUM_CONCURRENT:-16}"
 BATCH="${BATCH:-8}"          # prompts per completions request
 TIMEOUT="${TIMEOUT:-600}"    # seconds per request
