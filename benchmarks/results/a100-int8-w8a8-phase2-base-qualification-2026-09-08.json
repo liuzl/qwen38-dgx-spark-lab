@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-08",
+  "run_id": "int8-phase2-20260908b",
+  "status": "phase2_base_alias_gates_passed",
+  "scope": "base alias only; adapter alias not derived for this target",
+  "hardware": "1x NVIDIA A100 80GB PCIe",
+  "stack": {
+    "model": "Freaksterz/Qwen3.8-27B-SmoothQuant-W8A8-INT8",
+    "model_revision": "2df4e3b00d4b865d59a7de0dc286fb18fd455a1e",
+    "vllm": "0.28.0",
+    "weights": "compressed-tensors mixed W8A8 INT8 (CUTLASS) + W8A16 (Marlin)",
+    "dtype": "bfloat16",
+    "cuda_graph": "FULL_AND_PIECEWISE",
+    "speculative_decoding": "native MTP depth 7",
+    "kv_cache_dtype": "auto (BF16)",
+    "kv_cache_memory_bytes": 25769803776,
+    "max_model_len": 131072,
+    "max_num_seqs": 32,
+    "max_num_batched_tokens": 16384,
+    "kernel_gate": "Selected CutlassInt8ScaledMMLinearKernel for CompressedTensorsW8A8Int8"
+  },
+  "api_smoke": [
+    {
+      "model": "qwen3.8-27b",
+      "chat": "api-ok",
+      "messages": "messages-ok",
+      "responses_output_types": [
+        "message"
+      ],
+      "responses": "responses-ok",
+      "forced_tool": {
+        "name": "get_weather",
+        "arguments": "{\"city\": \"Singapore\"}"
+      }
+    }
+  ],
+  "deterministic_canaries": {
+    "max_tokens": 512,
+    "all_passed": true,
+    "canaries": [
+      {
+        "name": "code",
+        "passed": true,
+        "failures": [],
+        "sha256": "5ebaa216443795f82ed068b921f84d8926abee8db919ce654680479de04ffedd",
+        "characters": 628,
+        "finish_reason": "stop",
+        "completion_tokens": 234
+      },
+      {
+        "name": "chinese_reasoning",
+        "passed": true,
+        "failures": [],
+        "sha256": "bcff97593200204454fbce6ec53a798876d764356b333ba8e876d34f576c12a0",
+        "characters": 466,
+        "finish_reason": "stop",
+        "completion_tokens": 276
+      },
+      {
+        "name": "multilingual",
+        "passed": true,
+        "failures": [],
+        "sha256": "7a25611638fdc41c7be103249a019faed74f05354b739605961ac08bd5af4901",
+        "characters": 41,
+        "finish_reason": "stop",
+        "completion_tokens": 22
+      },
+      {
+        "name": "structured",
+        "passed": true,
+        "failures": [],
+        "sha256": "225074fac9d2cb47ae54a8382c263b388665163a00bb30e1222a3de339c1b553",
+        "characters": 81,
+        "finish_reason": "stop",
+        "completion_tokens": 46
+      }
+    ]
+  },
+  "canaries_vs_fp8_k7_production": {
+    "reference_label": "perf-k7-final",
+    "all_exact_match": false,
+    "canaries": [
+      {
+        "name": "code",
+        "exact_match": true,
+        "left_sha256": "5ebaa216443795f82ed068b921f84d8926abee8db919ce654680479de04ffedd",
+        "right_sha256": "5ebaa216443795f82ed068b921f84d8926abee8db919ce654680479de04ffedd",
+        "left_chars": 628,
+        "right_chars": 628,
+        "first_difference_char": null
+      },
+      {
+        "name": "chinese_reasoning",
+        "exact_match": false,
+        "left_sha256": "649b2cf3f2353eebc80352ee4cdab600eaf2ef29c3e96ba345801b296d7e931f",
+        "right_sha256": "bcff97593200204454fbce6ec53a798876d764356b333ba8e876d34f576c12a0",
+        "left_chars": 465,
+        "right_chars": 466,
+        "first_difference_char": 89
+      },
+      {
+        "name": "multilingual",
+        "exact_match": true,
+        "left_sha256": "7a25611638fdc41c7be103249a019faed74f05354b739605961ac08bd5af4901",
+        "right_sha256": "7a25611638fdc41c7be103249a019faed74f05354b739605961ac08bd5af4901",
+        "left_chars": 41,
+        "right_chars": 41,
+        "first_difference_char": null
+      },
+      {
+        "name": "structured",
+        "exact_match": true,
+        "left_sha256": "225074fac9d2cb47ae54a8382c263b388665163a00bb30e1222a3de339c1b553",
+        "right_sha256": "225074fac9d2cb47ae54a8382c263b388665163a00bb30e1222a3de339c1b553",
+        "left_chars": 81,
+        "right_chars": 81,
+        "first_difference_char": null
+      }
+    ],
+    "note": "chinese_reasoning differs from character 89 by one synonym (含有 vs 含); derivation and final answer 90 identical. Earlier run int8-phase2-20260908 with max_tokens 256 truncated this canary two characters before the answer and was superseded."
+  },
+  "multimodal_direct": {
+    "protocols": [
+      "ok: qwen3.8-27b chat image",
+      "ok: qwen3.8-27b responses image",
+      "ok: qwen3.8-27b messages image",
+      "ok: remote media URL denied (400)",
+      "ok: image-count limit enforced (400)"
+    ],
+    "all_passed": true
+  },
+  "stability": {
+    "schema_version": 1,
+    "created_at": "2026-09-08T06:34:18.667799+00:00",
+    "model": "qwen3.8-27b",
+    "requests": 64,
+    "concurrency": 32,
+    "elapsed_s": 3.2887,
+    "successes": 64,
+    "failures": [],
+    "request_rate": 19.4603,
+    "latency_s_mean": 1.5469,
+    "latency_s_max": 2.721,
+    "usage_reported_for_all": true
+  },
+  "not_covered": [
+    "adapter alias",
+    "StrongREJECT safety run",
+    "24-hour soak",
+    "long-context >16K quality",
+    "sustained mixed-user load"
+  ]
+}

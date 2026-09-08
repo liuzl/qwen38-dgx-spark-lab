@@ -201,3 +201,38 @@ transfer. Prefill quality, long-context behaviour beyond 16K, and sustained
 mixed load remain unmeasured for INT8. Raw measurements are the
 `a100-int8-w8a8-*-2026-09-08.json` files in `benchmarks/results/`; they
 contain no generated response text. Server logs remain on the test node.
+
+### Phase 2 base-alias quality gates
+
+`scripts/qualify-a100-int8-candidate.sh` ran the INT8 K7 candidate on
+2026-09-08 under the production profile with the adapter alias removed, in a
+second maintenance window. The kernel gate confirmed
+`CutlassInt8ScaledMMLinearKernel` before any check ran. Results for the base
+alias:
+
+| Gate | Result |
+|---|---|
+| API smoke: Chat Completions, Responses, Anthropic Messages, forced tool | passed |
+| Four greedy semantic canaries (512-token cap) | 4/4 passed |
+| Canaries versus the FP8 K7 production capture | code, multilingual, structured byte-identical; chinese_reasoning differs by one synonym at character 89, same derivation and answer |
+| Image inputs, direct: OCR fixture through three protocols | 3/3 passed |
+| Guardrails: remote media URL, five-image request | both rejected (400) |
+| 64 requests at C32, exact-match consistency | 64/64, no failures, 3.29 s |
+
+An earlier run the same day (`int8-phase2-20260908`) failed the
+chinese_reasoning canary only because the driver capped canaries at 256
+tokens and truncated the answer two characters before "90"; the FP8 reference
+itself used 276 tokens. That run is superseded, not counted.
+
+The image checks used `validate-multimodal.py --direct` against the
+candidate's vLLM port rather than the public gateway, because the gateway
+routes to production. Protocol coverage is the same; gateway authentication
+and routing were not re-tested and are unchanged.
+
+Status after Phase 2 for the base alias: **qualified for controlled
+research**, same standing as the FP8 K7 base alias. Still open before the
+service can switch: re-derive the rank-1 uncensored adapter against the INT8
+target and re-run the adapter alias through the same gates plus prefix-cache
+isolation; a StrongREJECT run on that adapter; and a production replay.
+See `a100-int8-w8a8-phase2-base-qualification-2026-09-08.json` in
+`benchmarks/results/` (hashes, counts and statuses only; no response text).

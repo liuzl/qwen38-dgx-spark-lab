@@ -3,7 +3,9 @@
 Status: Phase 1 complete, 2026-09-08. INT8 K7 passed the decision rule
 (16K TTFT 3.50 s versus 6.48 s; decode -5%; C8 +41%, C32 +62%). Results
 and interpretation are in [the tuning report](a100-performance-tuning.md);
-Phase 2 (quality gates and adapter re-derivation) has not started.
+Phase 2 base-alias quality gates passed the same day (API smoke,
+4/4 canaries, 6 image combinations plus guardrails, 64/64 at C32); adapter
+re-derivation and adapter-alias gates are the remaining Phase 2 work.
 
 ## Problem
 

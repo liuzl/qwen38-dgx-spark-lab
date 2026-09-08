@@ -68,8 +68,10 @@ MTP K7 with the existing 16K batch budget. In the controlled three-repeat
 matrix, base/adapter short C1 decode rises from 121.74/111.45 to 157.46/146.44
 tok/s; C8 aggregate gains are smaller, and long-input TTFT remains a limitation.
 The 2026-09-08 [INT8 W8A8 prefill arms](docs/a100-performance-tuning.md#int8-w8a8-prefill-arms)
-cut base-alias 16K TTFT from 6.48 to 3.50 s with a 5% short-decode cost; the
-INT8 checkpoint is a Phase 2 candidate, not the production service.
+cut base-alias 16K TTFT from 6.48 to 3.50 s with a 5% short-decode cost, and
+the INT8 base alias then passed the API, canary, image and C32 stability
+gates. The adapter alias is not yet derived for INT8, so production still
+serves FP8.
 A 2026-09-07 sweep found K3 faster than K7 at C32 but ruled out vLLM 0.28.0's
 dynamic depth schedule, so K7 remains static.
 
