@@ -3,9 +3,12 @@
 Status: Phase 1 complete, 2026-09-08. INT8 K7 passed the decision rule
 (16K TTFT 3.50 s versus 6.48 s; decode -5%; C8 +41%, C32 +62%). Results
 and interpretation are in [the tuning report](a100-performance-tuning.md);
-Phase 2 base-alias quality gates passed the same day (API smoke,
-4/4 canaries, 6 image combinations plus guardrails, 64/64 at C32); adapter
-re-derivation and adapter-alias gates are the remaining Phase 2 work.
+Phase 2 is complete for both aliases: the adapter was re-derived against
+the INT8 target and every gate passed (API smoke, canaries, images, cache
+isolation, C32 stability). A four-arm capability comparison found no
+measurable FP8-versus-INT8 difference. Remaining before a production switch:
+StrongREJECT on the INT8 adapter, a production replay, and the service
+definition change. See [the tuning report](a100-performance-tuning.md).
 
 ## Problem
 

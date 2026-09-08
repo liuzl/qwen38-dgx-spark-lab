@@ -1,0 +1,318 @@
+{
+ "schema_version": 1,
+ "date": "2026-09-08",
+ "purpose": "regression comparison of served aliases across quantization (FP8 Marlin W8A16 vs INT8 W8A8 CUTLASS) and the rank-1 uncensored adapter; same harness, same deterministic subsets",
+ "harness": {
+  "tool": "lm-evaluation-harness 0.4.13",
+  "client": "local-completions / local-chat-completions via logging proxy",
+  "server": "vLLM 0.28.0 production profile (MTP K7, CUDA graph, 128K, 24 GiB KV)",
+  "tasks": {
+   "mmlu": "0-shot, first 25 questions per subject (1,425), prompt-logprob multiple choice via /v1/completions echo",
+   "truthfulqa_mc2": "0-shot, first 200 questions, prompt-logprob multiple choice",
+   "gsm8k": "5-shot as multi-turn chat via /v1/chat/completions with the served chat template (thinking off), first 300 questions",
+   "ifeval": "0-shot chat via the served chat template, first 200 prompts"
+  },
+  "nan_band_padding": "prompts of 241-255 tokens hit a vLLM 0.28.0 NaN prompt-logprob 400; the proxy prepends newlines until they leave the band, identically for every arm. Padded per stage-1 pass: FP8 ~91-94, INT8 53.",
+  "non_200_responses": 0,
+  "replicates": "FP8 stage 1 (mmlu, truthfulqa_mc2) ran twice by accident on identical prompts; the spread (up to 1.3 points on MMLU) measures batch-dependent numerical nondeterminism and bounds what this suite can resolve.",
+  "superseded": "raw-completions gsm8k (no chat template) let the model emit <think> and hit the 256-token cap; 68%/77% figures are recorded but invalid."
+ },
+ "arms": {
+  "fp8-k7-base": {
+   "model": "Qwen/Qwen3.8-27B-FP8@017b9c7a",
+   "alias": "qwen3.8-27b"
+  },
+  "fp8-k7-adapter": {
+   "model": "Qwen/Qwen3.8-27B-FP8@017b9c7a + rank-1 adapter d6167653",
+   "alias": "qwen3.8-27b-uncensored"
+  },
+  "int8-k7-base": {
+   "model": "Freaksterz/Qwen3.8-27B-SmoothQuant-W8A8-INT8@2df4e3b0",
+   "alias": "qwen3.8-27b"
+  },
+  "int8-k7-adapter": {
+   "model": "Freaksterz/Qwen3.8-27B-SmoothQuant-W8A8-INT8@2df4e3b0 + rank-1 adapter a8d013f8",
+   "alias": "qwen3.8-27b-uncensored"
+  }
+ },
+ "results": {
+  "fp8-k7-base": {
+   "gsm8k": [
+    {
+     "sample_len": 300,
+     "exact_match,strict-match": 0.9067,
+     "exact_match_stderr,strict-match": 0.0168,
+     "exact_match,flexible-extract": 0.92,
+     "exact_match_stderr,flexible-extract": 0.0157,
+     "_when": "2026-09-08T10-23-33",
+     "_n": 300
+    }
+   ],
+   "ifeval": [
+    {
+     "sample_len": 200,
+     "prompt_level_strict_acc,none": 0.815,
+     "prompt_level_strict_acc_stderr,none": 0.0275,
+     "inst_level_strict_acc,none": 0.8679,
+     "prompt_level_loose_acc,none": 0.84,
+     "prompt_level_loose_acc_stderr,none": 0.026,
+     "inst_level_loose_acc,none": 0.8899,
+     "_when": "2026-09-08T09-51-06",
+     "_n": 200
+    }
+   ],
+   "mmlu": [
+    {
+     "sample_len": 1425,
+     "acc,none": 0.8035,
+     "acc_stderr,none": 0.0102,
+     "_when": "2026-09-08T09-42-06",
+     "_n": 1425,
+     "_groups": {
+      "humanities": 0.8154,
+      "other": 0.8154,
+      "social_sciences": 0.8467,
+      "stem": 0.76
+     }
+    },
+    {
+     "sample_len": 1425,
+     "acc,none": 0.8161,
+     "acc_stderr,none": 0.01,
+     "_when": "2026-09-08T10-17-37",
+     "_n": 1425,
+     "_groups": {
+      "humanities": 0.8185,
+      "other": 0.8462,
+      "social_sciences": 0.8467,
+      "stem": 0.7747
+     }
+    }
+   ],
+   "truthfulqa_mc2": [
+    {
+     "sample_len": 200,
+     "acc,none": 0.534,
+     "acc_stderr,none": 0.0312,
+     "_when": "2026-09-08T09-44-36",
+     "_n": 200
+    },
+    {
+     "sample_len": 200,
+     "acc,none": 0.5297,
+     "acc_stderr,none": 0.0314,
+     "_when": "2026-09-08T10-20-08",
+     "_n": 200
+    }
+   ],
+   "gsm8k_raw_completions_superseded": [
+    {
+     "sample_len": 300,
+     "exact_match,strict-match": 0.6533,
+     "exact_match_stderr,strict-match": 0.0275,
+     "exact_match,flexible-extract": 0.68,
+     "exact_match_stderr,flexible-extract": 0.027,
+     "_when": "2026-09-08T09-48-01",
+     "_n": 300
+    }
+   ],
+   "mmlu_full_anchor": [
+    {
+     "sample_len": 14042,
+     "acc,none": 0.8331,
+     "acc_stderr,none": 0.003,
+     "_when": "2026-09-08T09-20-43",
+     "_n": 14042,
+     "_groups": {
+      "humanities": 0.7747,
+      "other": 0.8577,
+      "social_sciences": 0.9064,
+      "stem": 0.8243
+     }
+    }
+   ]
+  },
+  "fp8-k7-adapter": {
+   "gsm8k": [
+    {
+     "sample_len": 300,
+     "exact_match,strict-match": 0.9133,
+     "exact_match_stderr,strict-match": 0.0163,
+     "exact_match,flexible-extract": 0.9233,
+     "exact_match_stderr,flexible-extract": 0.0154,
+     "_when": "2026-09-08T10-38-12",
+     "_n": 300
+    }
+   ],
+   "ifeval": [
+    {
+     "sample_len": 200,
+     "prompt_level_strict_acc,none": 0.79,
+     "prompt_level_strict_acc_stderr,none": 0.0289,
+     "inst_level_strict_acc,none": 0.8522,
+     "prompt_level_loose_acc,none": 0.835,
+     "prompt_level_loose_acc_stderr,none": 0.0263,
+     "inst_level_loose_acc,none": 0.8868,
+     "_when": "2026-09-08T10-09-06",
+     "_n": 200
+    }
+   ],
+   "mmlu": [
+    {
+     "sample_len": 1425,
+     "acc,none": 0.8077,
+     "acc_stderr,none": 0.0102,
+     "_when": "2026-09-08T09-59-19",
+     "_n": 1425,
+     "_groups": {
+      "humanities": 0.8277,
+      "other": 0.8215,
+      "social_sciences": 0.8167,
+      "stem": 0.7789
+     }
+    },
+    {
+     "sample_len": 1425,
+     "acc,none": 0.8028,
+     "acc_stderr,none": 0.0102,
+     "_when": "2026-09-08T10-31-43",
+     "_n": 1425,
+     "_groups": {
+      "humanities": 0.8246,
+      "other": 0.8062,
+      "social_sciences": 0.8333,
+      "stem": 0.7663
+     }
+    }
+   ],
+   "truthfulqa_mc2": [
+    {
+     "sample_len": 200,
+     "acc,none": 0.5012,
+     "acc_stderr,none": 0.0309,
+     "_when": "2026-09-08T10-01-55",
+     "_n": 200
+    },
+    {
+     "sample_len": 200,
+     "acc,none": 0.4939,
+     "acc_stderr,none": 0.0309,
+     "_when": "2026-09-08T10-34-19",
+     "_n": 200
+    }
+   ],
+   "gsm8k_raw_completions_superseded": [
+    {
+     "sample_len": 300,
+     "exact_match,strict-match": 0.7467,
+     "exact_match_stderr,strict-match": 0.0252,
+     "exact_match,flexible-extract": 0.7667,
+     "exact_match_stderr,flexible-extract": 0.0245,
+     "_when": "2026-09-08T10-05-33",
+     "_n": 300
+    }
+   ],
+   "mmlu_full_anchor": []
+  },
+  "int8-k7-base": {
+   "gsm8k": [
+    {
+     "sample_len": 300,
+     "exact_match,strict-match": 0.9,
+     "exact_match_stderr,strict-match": 0.0173,
+     "exact_match,flexible-extract": 0.9133,
+     "exact_match_stderr,flexible-extract": 0.0163,
+     "_when": "2026-09-08T10-55-43",
+     "_n": 300
+    }
+   ],
+   "ifeval": [
+    {
+     "sample_len": 200,
+     "prompt_level_strict_acc,none": 0.805,
+     "prompt_level_strict_acc_stderr,none": 0.0281,
+     "inst_level_strict_acc,none": 0.8648,
+     "prompt_level_loose_acc,none": 0.84,
+     "prompt_level_loose_acc_stderr,none": 0.026,
+     "inst_level_loose_acc,none": 0.8962,
+     "_when": "2026-09-08T10-58-25",
+     "_n": 200
+    }
+   ],
+   "mmlu": [
+    {
+     "sample_len": 1425,
+     "acc,none": 0.814,
+     "acc_stderr,none": 0.0099,
+     "_when": "2026-09-08T10-51-42",
+     "_n": 1425,
+     "_groups": {
+      "humanities": 0.8092,
+      "other": 0.8554,
+      "social_sciences": 0.8567,
+      "stem": 0.7621
+     }
+    }
+   ],
+   "truthfulqa_mc2": [
+    {
+     "sample_len": 200,
+     "acc,none": 0.5342,
+     "acc_stderr,none": 0.0311,
+     "_when": "2026-09-08T10-53-21",
+     "_n": 200
+    }
+   ]
+  },
+  "int8-k7-adapter": {
+   "gsm8k": [
+    {
+     "sample_len": 300,
+     "exact_match,strict-match": 0.9067,
+     "exact_match_stderr,strict-match": 0.0168,
+     "exact_match,flexible-extract": 0.9167,
+     "exact_match_stderr,flexible-extract": 0.016,
+     "_when": "2026-09-08T11-08-36",
+     "_n": 300
+    }
+   ],
+   "ifeval": [
+    {
+     "sample_len": 200,
+     "prompt_level_strict_acc,none": 0.805,
+     "prompt_level_strict_acc_stderr,none": 0.0281,
+     "inst_level_strict_acc,none": 0.8616,
+     "prompt_level_loose_acc,none": 0.845,
+     "prompt_level_loose_acc_stderr,none": 0.0257,
+     "inst_level_loose_acc,none": 0.8962,
+     "_when": "2026-09-08T11-11-30",
+     "_n": 200
+    }
+   ],
+   "mmlu": [
+    {
+     "sample_len": 1425,
+     "acc,none": 0.8147,
+     "acc_stderr,none": 0.0099,
+     "_when": "2026-09-08T11-04-17",
+     "_n": 1425,
+     "_groups": {
+      "humanities": 0.8246,
+      "other": 0.8523,
+      "social_sciences": 0.8267,
+      "stem": 0.7747
+     }
+    }
+   ],
+   "truthfulqa_mc2": [
+    {
+     "sample_len": 200,
+     "acc,none": 0.5264,
+     "acc_stderr,none": 0.0308,
+     "_when": "2026-09-08T11-06-05",
+     "_n": 200
+    }
+   ]
+  }
+ }
+}

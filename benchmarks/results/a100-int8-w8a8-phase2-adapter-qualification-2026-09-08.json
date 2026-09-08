@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-08",
+  "run_id": "int8-phase2-adapter-20260908",
+  "status": "phase2_gates_passed_both_aliases",
+  "hardware": "1x NVIDIA A100 80GB PCIe",
+  "stack": {
+    "model": "Freaksterz/Qwen3.8-27B-SmoothQuant-W8A8-INT8",
+    "model_revision": "2df4e3b00d4b865d59a7de0dc286fb18fd455a1e",
+    "vllm": "0.28.0",
+    "dtype": "bfloat16",
+    "speculative_decoding": "native MTP depth 7",
+    "cuda_graph": "FULL_AND_PIECEWISE",
+    "kv_cache_memory_bytes": 25769803776,
+    "max_model_len": 131072,
+    "max_num_seqs": 32,
+    "max_num_batched_tokens": 16384,
+    "kernel_gate": "CutlassInt8ScaledMMLinearKernel"
+  },
+  "adapter": {
+    "conversion": "qwen38-rank1-to-lora (compressed-tensors INT8 support)",
+    "adapter_sha256": "a8d013f8db91137ebed5386206d03407bd91dd276c760c6418b366fed6fc9329",
+    "directions_sha256": "9de12cbe71f38baf2f6b4a21dfcb2b13bd6416ab4785214afce27c7543f05c1d",
+    "modules": 128,
+    "quantization_counts": {
+      "int8_channel_packed_w8a16": 112,
+      "int8_channel_w8a8": 16
+    },
+    "rank": 1,
+    "target_modules": [
+      "out_proj",
+      "o_proj",
+      "down_proj"
+    ],
+    "distribution": "private; not in Git"
+  },
+  "api_smoke": [
+    {
+      "model": "qwen3.8-27b",
+      "chat": "api-ok",
+      "messages": "messages-ok",
+      "responses_output_types": [
+        "message"
+      ],
+      "responses": "responses-ok",
+      "forced_tool": {
+        "name": "get_weather",
+        "arguments": "{\"city\": \"Singapore\"}"
+      }
+    },
+    {
+      "model": "qwen3.8-27b-uncensored",
+      "chat": "api-ok",
+      "messages": "messages-ok",
+      "responses_output_types": [
+        "message"
+      ],
+      "responses": "responses-ok",
+      "forced_tool": {
+        "name": "get_weather",
+        "arguments": "{\"city\": \"Singapore\"}"
+      }
+    }
+  ],
+  "canaries": {
+    "qwen3.8-27b": {
+      "all_passed": true,
+      "max_tokens": 512,
+      "vs_fp8_k7_production": [
+        {
+          "name": "code",
+          "exact_match": true,
+          "left_sha256": "5ebaa216443795f82ed068b921f84d8926abee8db919ce654680479de04ffedd",
+          "right_sha256": "5ebaa216443795f82ed068b921f84d8926abee8db919ce654680479de04ffedd",
+          "left_chars": 628,
+          "right_chars": 628,
+          "first_difference_char": null
+        },
+        {
+          "name": "chinese_reasoning",
+          "exact_match": true,
+          "left_sha256": "649b2cf3f2353eebc80352ee4cdab600eaf2ef29c3e96ba345801b296d7e931f",
+          "right_sha256": "649b2cf3f2353eebc80352ee4cdab600eaf2ef29c3e96ba345801b296d7e931f",
+          "left_chars": 465,
+          "right_chars": 465,
+          "first_difference_char": null
+        },
+        {
+          "name": "multilingual",
+          "exact_match": true,
+          "left_sha256": "7a25611638fdc41c7be103249a019faed74f05354b739605961ac08bd5af4901",
+          "right_sha256": "7a25611638fdc41c7be103249a019faed74f05354b739605961ac08bd5af4901",
+          "left_chars": 41,
+          "right_chars": 41,
+          "first_difference_char": null
+        },
+        {
+          "name": "structured",
+          "exact_match": true,
+          "left_sha256": "225074fac9d2cb47ae54a8382c263b388665163a00bb30e1222a3de339c1b553",
+          "right_sha256": "225074fac9d2cb47ae54a8382c263b388665163a00bb30e1222a3de339c1b553",
+          "left_chars": 81,
+          "right_chars": 81,
+          "first_difference_char": null
+        }
+      ]
+    },
+    "qwen3.8-27b-uncensored": {
+      "all_passed": true,
+      "max_tokens": 512,
+      "vs_fp8_k7_production": [
+        {
+          "name": "code",
+          "exact_match": false,
+          "left_sha256": "eaec6e8b33ed0cf061ee3cf3bfa4dbe202690a466051cd4ddbf5bb59848c404a",
+          "right_sha256": "5ebaa216443795f82ed068b921f84d8926abee8db919ce654680479de04ffedd",
+          "left_chars": 540,
+          "right_chars": 628,
+          "first_difference_char": 286
+        },
+        {
+          "name": "chinese_reasoning",
+          "exact_match": false,
+          "left_sha256": "52529ee193a68381a22b500321af4620d268ffbfb63403a6af91e02e76459432",
+          "right_sha256": "80541aa155c05a5aef5cf151311cf69975f2084cc6cf239ce96198a0d2f5318b",
+          "left_chars": 415,
+          "right_chars": 536,
+          "first_difference_char": 22
+        },
+        {
+          "name": "multilingual",
+          "exact_match": false,
+          "left_sha256": "18d79e5150d01333f5d30aa15b90fec90b835fed11eb061fd0627f42067f335c",
+          "right_sha256": "3afb1723e382fbe75d6f26012604d0a7ebb702e3025a410b2bf74524027c79db",
+          "left_chars": 40,
+          "right_chars": 42,
+          "first_difference_char": 4
+        },
+        {
+          "name": "structured",
+          "exact_match": true,
+          "left_sha256": "1a889b24820577709c670fe7a8068d2cfd190be2d1c937f6e1e048bce799b092",
+          "right_sha256": "1a889b24820577709c670fe7a8068d2cfd190be2d1c937f6e1e048bce799b092",
+          "left_chars": 52,
+          "right_chars": 52,
+          "first_difference_char": null
+        }
+      ]
+    }
+  },
+  "multimodal_direct": {
+    "checks": [
+      "ok: qwen3.8-27b chat image",
+      "ok: qwen3.8-27b responses image",
+      "ok: qwen3.8-27b messages image",
+      "ok: qwen3.8-27b-uncensored chat image",
+      "ok: qwen3.8-27b-uncensored responses image",
+      "ok: qwen3.8-27b-uncensored messages image",
+      "ok: remote media URL denied (400)",
+      "ok: image-count limit enforced (400)"
+    ],
+    "all_passed": true
+  },
+  "prefix_cache_isolation": {
+    "steps": [
+      [
+        "initial",
+        0.0
+      ],
+      [
+        "base_first",
+        0.0
+      ],
+      [
+        "base_second",
+        2496.0
+      ],
+      [
+        "adapter_first",
+        2496.0
+      ],
+      [
+        "adapter_second",
+        4992.0
+      ]
+    ],
+    "deltas": [
+      0.0,
+      2496.0,
+      0.0,
+      2496.0
+    ]
+  },
+  "stability": {
+    "qwen3.8-27b": {
+      "schema_version": 1,
+      "created_at": "2026-09-08T10:45:59.228016+00:00",
+      "model": "qwen3.8-27b",
+      "requests": 64,
+      "concurrency": 32,
+      "elapsed_s": 4.63,
+      "successes": 64,
+      "failures": [],
+      "request_rate": 13.8229,
+      "latency_s_mean": 2.2049,
+      "latency_s_max": 3.9643,
+      "usage_reported_for_all": true
+    },
+    "qwen3.8-27b-uncensored": {
+      "schema_version": 1,
+      "created_at": "2026-09-08T10:46:04.144953+00:00",
+      "model": "qwen3.8-27b-uncensored",
+      "requests": 64,
+      "concurrency": 32,
+      "elapsed_s": 2.7245,
+      "successes": 64,
+      "failures": [],
+      "request_rate": 23.4908,
+      "latency_s_mean": 1.2608,
+      "latency_s_max": 2.215,
+      "usage_reported_for_all": true
+    }
+  },
+  "not_covered": [
+    "StrongREJECT safety run on the INT8 adapter",
+    "24-hour soak",
+    "production replay",
+    "long-context >16K quality"
+  ]
+}

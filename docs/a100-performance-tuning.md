@@ -236,3 +236,96 @@ target and re-run the adapter alias through the same gates plus prefix-cache
 isolation; a StrongREJECT run on that adapter; and a production replay.
 See `a100-int8-w8a8-phase2-base-qualification-2026-09-08.json` in
 `benchmarks/results/` (hashes, counts and statuses only; no response text).
+
+### Phase 2 adapter alias and combined gates
+
+The rank-1 uncensored adapter was re-derived against the INT8 target on
+2026-09-08. `scripts/qwen38-rank1-to-lora.py` gained support for the
+compressed-tensors layouts: INT8 per-channel `weight` with `weight_scale`
+(W8A8 modules) and int32 `weight_packed` with `weight_shape` (W8A16 modules),
+with auxiliary tensors resolved through the checkpoint index because this
+checkpoint places a module's weight and scale in different shard files. A
+synthetic multi-shard test matched reference math to 1e-5 before the real
+run. The same refusal directions (SHA `9de12cbe`) produced 128 modules: 112
+`int8_channel_packed_w8a16` and 16 `int8_channel_w8a8`. The adapter stays
+private.
+
+A second window then served both INT8 aliases with the production profile and
+ran every gate in one pass, all passed:
+
+| Gate | Base | Adapter |
+|---|---|---|
+| API smoke (Chat, Responses, Messages, forced tool) | passed | passed |
+| Greedy canaries, 512-token cap | 4/4 | 4/4 |
+| Canaries vs FP8 K7 production capture | 4/4 byte-identical | constraints pass; text differs (different target weights, expected) |
+| Image OCR through three protocols | 3/3 | 3/3 |
+| Remote URL and five-image guardrails | rejected (400) | rejected (400) |
+| Prefix-cache isolation | hit deltas `[0, 2496, 0, 2496]` for base, base again, adapter, adapter again |
+| 64 requests at C32 | 64/64 | 64/64 |
+
+Details are in `a100-int8-w8a8-phase2-adapter-qualification-2026-09-08.json`
+(hashes, counts and statuses only). Still open before a production switch: a
+StrongREJECT run on the INT8 adapter, a production replay, and the systemd
+and env change itself.
+
+## Capability comparison across four arms
+
+To check whether INT8 or the adapter changes model capability, all four
+served aliases were run through lm-evaluation-harness 0.4.13 on 2026-09-08
+with `scripts/run-capability-eval.sh`: identical prompts, identical
+deterministic subsets, same vLLM profile. The FP8 arms ran on the production
+container; the INT8 arms ran on the candidate inside the Phase 2 window.
+
+The suite is a regression smoke sized for about 12 minutes per alias, not a
+leaderboard run. Multiple-choice tasks run 0-shot through prompt logprobs,
+because vLLM computes prompt logprobs with full-vocabulary logits per token
+and cannot use the prefix cache for them; full MMLU 0-shot alone took 60
+minutes and MMLU 5-shot projected to about 25 hours. GSM8K and IFEval go
+through the chat template so the server's thinking-off default applies. On
+the raw completions path the model emits `<think>` and exhausts the 256-token
+cap before answering, which produced an invalid 68% GSM8K figure that is
+recorded as superseded. HellaSwag, ARC and WinoGrande were dropped as
+low-signal for this purpose.
+
+Two calibration facts bound the interpretation. The FP8 stage-1 tasks ran
+twice on identical prompts by accident, and MMLU moved from 80.4 to 81.6
+between replicates; that 1.3-point spread is batch-dependent numerical
+nondeterminism in prompt logprobs, so differences under about 1.5 points are
+not resolvable by this suite. The full 14,042-question MMLU on FP8 base scored
+83.3% ±0.3; the 25-per-subject subset scores about 2 points lower because of
+subject weighting, identically for all arms.
+
+| Task (subset) | FP8 base | FP8 adapter | INT8 base | INT8 adapter |
+|---|---:|---:|---:|---:|
+| MMLU 0-shot, 1,425 q (±1.0) | 81.0 (80.4 / 81.6) | 80.5 (80.8 / 80.3) | 81.4 | 81.5 |
+| TruthfulQA-MC2, 200 q (±3.1) | 53.2 (53.4 / 53.0) | 49.8 (50.1 / 49.4) | 53.4 | 52.6 |
+| GSM8K 5-shot chat, 300 q, strict (±1.7) | 90.7 | 91.3 | 90.0 | 90.7 |
+| GSM8K flexible-extract | 92.0 | 92.3 | 91.3 | 91.7 |
+| IFEval prompt-level strict, 200 (±2.8) | 81.5 | 79.0 | 80.5 | 80.5 |
+| IFEval instruction-level loose | 89.0 | 88.7 | 89.6 | 89.6 |
+
+FP8 cells show the mean of two replicates with both values in parentheses.
+Every FP8-versus-INT8 difference is inside the replicate spread or one
+standard error: INT8 does not measurably change knowledge, reasoning, or
+instruction following relative to FP8 on this suite. The adapter is likewise
+indistinguishable from its base on MMLU, GSM8K and IFEval on both targets. The
+one candidate signal is TruthfulQA-MC2 on FP8, where the adapter scored 3.4
+points below base in both replicates; the INT8 adapter shows only 0.8 points
+below its base, so the effect is unconfirmed and would need the full 817
+questions on both targets to settle. It is also the direction one would
+expect from removing refusal directions, so it should be re-checked rather
+than dismissed.
+
+One serving observation came out of the harness. On this profile vLLM 0.28.0
+returns HTTP 400 "Out of range float values are not JSON compliant: nan" for
+`/v1/completions` with `echo` and `logprobs` whenever the prompt is exactly
+241-255 tokens long; 240 and 256 or more are fine and content is irrelevant.
+Generated text and sampled-token logprobs at those lengths are normal, so the
+app is unaffected. The eval proxy pads such prompts with leading newlines,
+identically for every arm, and reports the count: 91-94 per FP8 stage-1 pass
+versus 53 on INT8, so the band is narrower on the INT8 kernels. This looks
+like a prompt-logprobs bug in the last CUDA-graph bucket with MTP and has not
+been checked with graphs disabled.
+
+Per-task result files with stderr, subject-group breakdowns, replicates and
+the superseded runs are in `a100-capability-eval-four-arm-2026-09-08.json`.
