@@ -97,7 +97,9 @@ while (( $# >= 2 )); do
   docker logs "$CAND" 2>&1 \
     | grep -E 'Selected .*Kernel|ScaledMM|Marlin|GDN prefill kernel|attention backend|FlashAttention version|cudagraph_mode' \
     | sed 's/^/  kernel: /' || true
-  if [[ -n "$arm_gate" ]] && ! docker logs "$CAND" 2>&1 | grep -qE "$arm_gate"; then
+  # No grep -q: under pipefail an early exit would SIGPIPE docker logs and
+  # report a false gate failure even when the kernel line is present.
+  if [[ -n "$arm_gate" ]] && ! docker logs "$CAND" 2>&1 | grep -E "$arm_gate" >/dev/null; then
     echo "arm $label kernel gate FAILED: log does not match /$arm_gate/"
   fi
   "$PYTHON" "$LAB/scripts/benchmark-serving-matrix.py" \
