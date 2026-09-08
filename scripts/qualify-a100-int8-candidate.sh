@@ -28,6 +28,9 @@ MODEL_NAME="${SERVED_MODEL_NAME:-qwen3.8-27b}"
 IMAGE_FIXTURE="${IMAGE_FIXTURE:-$LOGS/perf-image.png}"   # renders the digits 7429
 REFERENCE_CANARIES="${REFERENCE_CANARIES:-$LOGS/perf-k7-final-qwen3.8-27b-canaries.raw.json}"
 KERNEL_GATE="${KERNEL_GATE:-CutlassInt8ScaledMM}"
+# The FP8 K7 reference answers need up to ~280 tokens; 256 truncates the
+# chinese_reasoning canary before its final line and fails it spuriously.
+CANARY_MAX_TOKENS="${CANARY_MAX_TOKENS:-512}"
 
 wait_health() { # port, max seconds, container
   local waited=0
@@ -93,7 +96,7 @@ fi
 
 echo "[$(date -u +%FT%TZ)] 2/4 greedy canaries"
 docker exec "$CAND" python3 /lab/scripts/capture-greedy-canaries.py \
-  --base-url "$url" --model "$MODEL_NAME" --label "$RUN_ID" --max-tokens 256 \
+  --base-url "$url" --model "$MODEL_NAME" --label "$RUN_ID" --max-tokens "$CANARY_MAX_TOKENS" \
   --output "/run-logs/$RUN_ID-canaries.raw.json"
 python3 "$LAB/scripts/summarize-greedy-canaries.py" "$LOGS/$RUN_ID-canaries.raw.json" \
   --output "$LOGS/$RUN_ID-canaries.json"
