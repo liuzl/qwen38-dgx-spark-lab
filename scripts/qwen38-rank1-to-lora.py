@@ -16,7 +16,10 @@ RadixArk Qwen3.8 uses static FP8 for attention/GDN output projections and
 packed NVFP4 for MLP down projections. The official FP8 checkpoint uses E4M3
 weights with two-dimensional 128x128 inverse block scales. The converter also
 supports checkpoints without a safetensors index by discovering layer shards.
-It consumes all three layouts directly and never materializes a complete
+Compressed-tensors INT8 checkpoints store W8A8 modules as int8 ``weight`` with a
+per-channel ``weight_scale`` and W8A16 modules as ``weight_packed`` int32 (four
+int8 values per word, value ``i`` at bits ``8*i``) with ``weight_shape``.
+It consumes all layouts directly and never materializes a complete
 dequantized model.
 """
 
@@ -105,6 +108,34 @@ def nvfp4_weight_chunk(
     return (decoded * scales * global_scale.float()).reshape(end - start, -1)
 
 
+def unpack_int8_from_int32(packed: torch.Tensor, columns: int) -> torch.Tensor:
+    """Decode compressed-tensors pack-quantized int32 words into signed int8."""
+    if packed.dtype != torch.int32:
+        raise TypeError(f"packed weight must be int32, got {packed.dtype}")
+    parts = [((packed >> (8 * i)) & 0xFF).to(torch.uint8) for i in range(4)]
+    unpacked = torch.stack(parts, dim=-1).reshape(packed.shape[0], -1)
+    return unpacked[:, :columns].view(torch.int8)
+
+
+def int8_channel_weight_chunk(
+    weight: torch.Tensor, scale: torch.Tensor, start: int, end: int
+) -> torch.Tensor:
+    scale_f32 = scale.float().reshape(-1)
+    if scale_f32.shape[0] != weight.shape[0]:
+        raise ValueError(
+            "INT8 per-channel scale mismatch: "
+            f"weight={tuple(weight.shape)} scale={tuple(scale.shape)}"
+        )
+    return weight[start:end].float() * scale_f32[start:end, None]
+
+
+def weight_tensor_name(weight_map: dict[str, str], module: str) -> str:
+    for suffix in (".weight", ".weight_packed"):
+        if f"{module}{suffix}" in weight_map:
+            return f"{module}{suffix}"
+    raise KeyError(f"weight not found in index: {module}.weight")
+
+
 def adapter_module_name(direction_name: str) -> str:
     prefix = "model.language_model."
     if not direction_name.startswith(prefix):
@@ -118,17 +149,39 @@ def build_lora_pair(
     direction: torch.Tensor,
     coef: float,
     row_chunk: int,
+    weight_name: str | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, str]:
-    weight_name = f"{module}.weight"
+    weight_name = weight_name or f"{module}.weight"
     with safe_open(shard, framework="pt", device="cpu") as handle:
         weight = handle.get_tensor(weight_name)
+        if weight_name.endswith(".weight_packed"):
+            if weight.dtype != torch.int32:
+                raise TypeError(f"{module}: packed weight must be int32")
+            shape = handle.get_tensor(f"{module}.weight_shape")
+            rows, columns = (int(v) for v in shape)
+            if rows != weight.shape[0]:
+                raise ValueError(
+                    f"{module}: weight_shape rows {rows} != {weight.shape[0]}"
+                )
+            weight = unpack_int8_from_int32(weight, columns)
+            packed_int8 = True
+        else:
+            packed_int8 = False
         if weight.shape[0] != direction.numel():
             raise ValueError(
                 f"{module}: output mismatch weight={tuple(weight.shape)} "
                 f"direction={tuple(direction.shape)}"
             )
 
-        if weight.dtype == torch.uint8:
+        if weight.dtype == torch.int8:
+            scale = handle.get_tensor(f"{module}.weight_scale")
+            input_size = weight.shape[1]
+            quant = "int8_channel_packed_w8a16" if packed_int8 else "int8_channel_w8a8"
+
+            def get_chunk(start: int, end: int) -> torch.Tensor:
+                return int8_channel_weight_chunk(weight, scale, start, end)
+
+        elif weight.dtype == torch.uint8:
             block_scale = handle.get_tensor(f"{module}.weight_scale")
             global_scale = handle.get_tensor(f"{module}.weight_scale_2")
             input_size = weight.shape[1] * 2
@@ -201,7 +254,7 @@ def discover_weight_map(model: Path) -> tuple[dict[str, str], str, str | None]:
     for shard in shards:
         with safe_open(shard, framework="pt", device="cpu") as handle:
             for key in handle.keys():  # noqa: SIM118 - safe_open is not iterable
-                if not key.endswith(".weight"):
+                if not key.endswith((".weight", ".weight_packed")):
                     continue
                 if key in weight_map:
                     raise ValueError(f"duplicate weight across shards: {key}")
@@ -241,16 +294,15 @@ def main() -> None:
     module_manifest: list[dict[str, Any]] = []
 
     for idx, module in enumerate(module_order):
-        weight_name = f"{module}.weight"
-        shard_name = weight_map.get(weight_name)
-        if shard_name is None:
-            raise KeyError(f"weight not found in index: {weight_name}")
+        weight_name = weight_tensor_name(weight_map, module)
+        shard_name = weight_map[weight_name]
         lora_a, lora_b, quant = build_lora_pair(
             args.model / shard_name,
             module,
             directions[module],
             float(coefs[idx]),
             args.row_chunk,
+            weight_name,
         )
         vllm_name = adapter_module_name(module)
         key_prefix = f"base_model.model.{vllm_name}"
