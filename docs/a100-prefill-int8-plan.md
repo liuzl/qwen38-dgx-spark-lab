@@ -100,7 +100,8 @@ BF16 while keeping FP8-class memory. That is the expectation, not a claim.
 
 1. Download the pinned revision into the shared HF cache
    (`/hf-cache/hub`) via a throwaway CPU-only container; the production
-   container is intentionally offline. Started 2026-09-08.
+   container is intentionally offline. Completed 2026-09-08; the snapshot
+   gate below passed (49 files, 30 GiB, MTP head present).
 2. Verify the snapshot with `scripts/check-a100-int8-snapshot.sh`: 49 files,
    no incomplete blobs, `quantization_config` matches the description above,
    `model-mtp.safetensors` present.
