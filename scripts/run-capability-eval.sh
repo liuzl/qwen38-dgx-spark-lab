@@ -4,12 +4,14 @@
 # endpoint. Used to compare the FP8 and INT8 targets, base and adapter aliases,
 # with the same harness, prompts, and few-shot settings.
 #
-# Stage 1 (completions endpoint, no chat template), Open-LLM-Leaderboard-v1
-# few-shot settings. These also keep every multiple-choice prompt above the
-# 241-255-token band in which vLLM 0.28.0 returns NaN prompt logprobs on this
-# serving profile (see docs/a100-performance-tuning.md):
-#   mmlu 5-shot, arc_challenge 25-shot, hellaswag 10-shot, winogrande 5-shot,
-#   truthfulqa_mc2 0-shot, gsm8k 5-shot (generative, strict/flexible match)
+# Stage 1 (completions endpoint, no chat template):
+#   multiple choice via prompt logprobs, 0-shot: mmlu, arc_challenge, hellaswag,
+#   winogrande, truthfulqa_mc2; generative: gsm8k 5-shot (strict/flexible match)
+#   0-shot is deliberate: vLLM computes prompt logprobs with full-vocabulary
+#   logits for every prompt token and cannot use the prefix cache for them, so
+#   few-shot contexts multiply cost by 5-25x (MMLU 5-shot measured at ~25 h).
+#   Prompts of 241-255 tokens hit the vLLM 0.28.0 NaN prompt-logprob band on
+#   this profile; eval-logproxy.py pads those and reports the count.
 # Stage 2 (chat completions with the served chat template, thinking off):
 #   ifeval (instruction following)
 #
@@ -27,9 +29,11 @@ model="${2:?served model name}"
 base_url="${3:-http://127.0.0.1:18103}"
 EVAL_CONTAINER="${EVAL_CONTAINER:-qwen38-lm-eval}"
 EVAL_DIR="${EVAL_DIR:-/databank/zliu/qwen38-a100/eval}"
-STAGE1="${STAGE1:-mmlu:5 arc_challenge:25 hellaswag:10 winogrande:5 truthfulqa_mc2:0 gsm8k:5}"
+STAGE1="${STAGE1:-mmlu:0 arc_challenge:0 hellaswag:0 winogrande:0 truthfulqa_mc2:0 gsm8k:5}"
 CHAT_TASKS="${CHAT_TASKS:-ifeval}"
-NUM_CONCURRENT="${NUM_CONCURRENT:-32}"
+NUM_CONCURRENT="${NUM_CONCURRENT:-16}"
+BATCH="${BATCH:-8}"          # prompts per completions request
+TIMEOUT="${TIMEOUT:-600}"    # seconds per request
 TOKENIZER="${TOKENIZER:-Qwen/Qwen3.8-27B-FP8}"
 LIMIT="${LIMIT:-}"
 PROXY_PORT="${PROXY_PORT:-18199}"
@@ -60,9 +64,9 @@ for spec in $STAGE1; do
   echo "[$(date -u +%FT%TZ)] stage 1: $task ($shots-shot)"
   docker exec "$EVAL_CONTAINER" lm_eval \
     --model local-completions \
-    --model_args "model=$model,base_url=$purl/v1/completions,num_concurrent=$NUM_CONCURRENT,max_retries=3,tokenized_requests=False,tokenizer=$TOKENIZER,tokenizer_backend=huggingface" \
+    --model_args "model=$model,base_url=$purl/v1/completions,num_concurrent=$NUM_CONCURRENT,max_retries=3,timeout=$TIMEOUT,tokenized_requests=False,tokenizer=$TOKENIZER,tokenizer_backend=huggingface" \
     --tasks "$task" --num_fewshot "$shots" \
-    --batch_size "$NUM_CONCURRENT" \
+    --batch_size "$BATCH" \
     --output_path "$out/$task" \
     --log_samples \
     "${limit_arg[@]}" 2>&1 | grep -E '^\||Error|error|Traceback' | grep -v -E '^\|-|Tasks' || true
@@ -73,16 +77,18 @@ if [[ -n "$CHAT_TASKS" ]]; then
   echo "[$(date -u +%FT%TZ)] stage 2: $CHAT_TASKS (chat template)"
   docker exec "$EVAL_CONTAINER" lm_eval \
     --model local-chat-completions \
-    --model_args "model=$model,base_url=$purl/v1/chat/completions,num_concurrent=$NUM_CONCURRENT,max_retries=3,tokenized_requests=False,tokenizer=$TOKENIZER,tokenizer_backend=huggingface" \
+    --model_args "model=$model,base_url=$purl/v1/chat/completions,num_concurrent=$NUM_CONCURRENT,max_retries=3,timeout=$TIMEOUT,tokenized_requests=False,tokenizer=$TOKENIZER,tokenizer_backend=huggingface" \
     --tasks "$CHAT_TASKS" \
     --apply_chat_template \
-    --batch_size "$NUM_CONCURRENT" \
+    --batch_size "$BATCH" \
     --output_path "$out/chat" \
     --log_samples \
     "${limit_arg[@]}" 2>&1 | grep -E '^\||Error|error|Traceback' | grep -v -E '^\|-|Tasks' || true
 fi
 
 docker exec "$EVAL_CONTAINER" pkill -f "logproxy.py .* $PROXY_PORT " 2>/dev/null || true
+padded=$(wc -l <"${proxy_log/.non200.jsonl/.padded.jsonl}" 2>/dev/null || echo 0)
+echo "[$(date -u +%FT%TZ)] padded NaN-band requests: $padded"
 bad=$(wc -l <"$proxy_log" 2>/dev/null || echo 0)
 if (( bad > 0 )); then
   echo "[$(date -u +%FT%TZ)] EVAL INVALID $label: $bad non-200 responses (see $proxy_log)"
