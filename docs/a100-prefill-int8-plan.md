@@ -1,7 +1,9 @@
 # A100 prefill optimization plan: INT8 W8A8
 
-Status: plan, 2026-09-08. No INT8 measurement exists yet. Nothing here is a
-result until the controlled arms in this document have run.
+Status: Phase 1 complete, 2026-09-08. INT8 K7 passed the decision rule
+(16K TTFT 3.50 s versus 6.48 s; decode -5%; C8 +41%, C32 +62%). Results
+and interpretation are in [the tuning report](a100-performance-tuning.md);
+Phase 2 (quality gates and adapter re-derivation) has not started.
 
 ## Problem
 

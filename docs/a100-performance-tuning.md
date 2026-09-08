@@ -131,3 +131,73 @@ to static K3 or K4 rather than a schedule; that trade costs about 23% of
 single-stream decode for about 13% more C32 aggregate throughput. Raw
 measurements are the `a100-mtp-batch-*-2026-09-07.json` files in
 `benchmarks/results/`; the aborted V2 static K3 control has no result file.
+
+## INT8 W8A8 prefill arms
+
+The 2026-09-08 experiment executes Phase 1 of the
+[INT8 prefill plan](a100-prefill-int8-plan.md). On Ampere the official FP8
+checkpoint runs through Marlin as W8A16, so prefill pays BF16 compute plus
+dequantization. The candidate `Freaksterz/Qwen3.8-27B-SmoothQuant-W8A8-INT8`
+(revision `2df4e3b0`, compressed-tensors) routes 288 of 400 Linear modules to
+`CutlassInt8ScaledMMLinearKernel` on INT8 Tensor Cores; `mlp.down_proj` and
+`linear_attn.out_proj` stay W8A16 on Marlin, and the MTP head is BF16.
+
+`scripts/sweep-a100-int8-arms.sh` ran three arms in fresh processes under the
+production image profile with the adapter alias removed: the FP8 K7 control,
+INT8 K7, and INT8 K3. Every other flag matched production (vLLM 0.28.0,
+CUDA Graph, 128K context, 24 GiB BF16 KV, C32, 16K batch budget, image inputs
+enabled, thinking disabled). Three repetitions, 256 output tokens per request,
+base alias only. The kernel line in each server log was checked; the
+`kernel gate FAILED` messages in the sweep log are a script false negative
+(`grep -q` under `pipefail`) fixed after the run, and the recorded kernel lines
+are authoritative. The control reproduced the 2026-09-06 and 2026-09-07 K7
+results within 1%. All 45 measured cases across the three arms completed with
+no request failures.
+
+Medians of three repetitions, base alias, tokens/second unless noted:
+
+| Shape | FP8 K7 (control) | INT8 K7 | INT8 K3 |
+|---|---:|---:|---:|
+| 1K C1 TTFT | 0.486 s | 0.299 s | 0.278 s |
+| 1K C1 decode | 156.70 | 148.70 | 115.31 |
+| 16K C1 TTFT | 6.482 s | **3.502 s** | 3.512 s |
+| 16K C1 decode | 123.15 | 119.35 | 85.02 |
+| 1K+image C1 TTFT | 0.575 s | 0.352 s | 0.350 s |
+| 1K+image C1 decode | 148.68 | 144.46 | 113.25 |
+| 1K C8 TTFT | 3.298 s | 1.706 s | 1.713 s |
+| 1K C8 aggregate | 355.20 | 499.77 | 451.03 |
+| 1K C32 TTFT | 11.859 s | 6.523 s | 5.849 s |
+| 1K C32 aggregate | 372.81 | 603.18 | 699.50 |
+| Acceptance length incl. warmup | 4.8-5.0 | 4.7-5.1 | 2.6-2.8 |
+
+INT8 K7 cuts 16K TTFT by 46% and C8/C32 TTFT by 45-48%. Short C1 decode
+falls 5% (156.70 to 148.70) and image C1 decode 3%; that is far below the 13%
+single-stream penalty the checkpoint author reported and inside the plan's 15%
+budget. Because prefill is shorter, C8 aggregate rises 41% and C32 aggregate
+62%. Speculative acceptance is unchanged, so the gain is entirely the linear
+kernels, not drafting. The 16,363-token prefill rate moves from about 2,520 to
+about 4,670 tok/s (prompt tokens over TTFT), which exceeds the BF16 arm measured in the porting report
+(about 3,600 tok/s) while keeping 8-bit weights.
+
+INT8 K3 gives the same TTFT as INT8 K7 (prefill does not depend on depth) but
+loses 22-27% of single-stream decode and 10% of C8 aggregate. It wins only at
+C32 (+16% over INT8 K7) with 7.5% more KV blocks (338,297 versus 314,572
+tokens). The batch-size trade is the same one measured on FP8 on 2026-09-07:
+K7 for interactive single-stream, K3 for sustained C16-plus load. The author's
+K<=3 recommendation for hybrid-GDN targets is therefore an acceptance
+observation, not a limit: INT8 K7 acceptance matched FP8 K7.
+
+Capacity: model loading took 29.31 GiB for INT8 versus 29.36 GiB for FP8; the
+fixed 24 GiB KV pool holds the same 314,572 tokens at K7; graph capture took
+1.00 versus 0.96 GiB. No memory was traded for the speedup.
+
+Decision: INT8 K7 passes every Phase 1 criterion (16K TTFT below 5.0 s, no
+C8/C32 regression, decode loss under 15%) and is promoted to Phase 2 of the
+plan. It is **not** in production. Before promotion the checkpoint must pass
+the four semantic canaries, forced-tool and API checks, and the six image
+combinations, and the rank-1 uncensored adapter must be re-derived against
+the INT8 target and re-qualified, because the FP8-derived adapter does not
+transfer. Prefill quality, long-context behaviour beyond 16K, and sustained
+mixed load remain unmeasured for INT8. Raw measurements are the
+`a100-int8-w8a8-*-2026-09-08.json` files in `benchmarks/results/`; they
+contain no generated response text. Server logs remain on the test node.
