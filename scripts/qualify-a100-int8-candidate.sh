@@ -34,6 +34,9 @@ ADAPTER_DIR="${ADAPTER_DIR-$BASE/artifacts/adapter-int8-2df4e3b0-v2}"
 CANDIDATE_ADAPTER_DIR="$ADAPTER_DIR"
 ADAPTER_NAME="${ADAPTER_MODEL_NAME:-qwen3.8-27b-uncensored}"
 RUN_EVAL="${RUN_EVAL:-0}"
+# Which aliases to evaluate when RUN_EVAL=1: "both" (default), "base", "adapter".
+# Use "adapter" when only the adapter changed; the base eval costs ~12 minutes.
+EVAL_ALIASES="${EVAL_ALIASES:-both}"
 IMAGE_FIXTURE="${IMAGE_FIXTURE:-$LOGS/perf-image.png}"   # renders the digits 7429
 REFERENCE_CANARIES="${REFERENCE_CANARIES:-$LOGS/perf-k7-final-qwen3.8-27b-canaries.raw.json}"
 KERNEL_GATE="${KERNEL_GATE:-CutlassInt8ScaledMM}"
@@ -170,6 +173,10 @@ done
 if [[ "$RUN_EVAL" == 1 ]]; then
   for alias in "${aliases[@]}"; do
     tag="int8-k7-base"; [[ "$alias" == "$ADAPTER_NAME" ]] && tag="int8-k7-adapter"
+    case "$EVAL_ALIASES" in
+      base) [[ "$alias" == "$MODEL_NAME" ]] || continue ;;
+      adapter) [[ "$alias" == "$ADAPTER_NAME" ]] || continue ;;
+    esac
     echo "[$(date -u +%FT%TZ)] capability eval $tag"
     if bash "$LAB/scripts/run-capability-eval.sh" "$tag" "$alias" "$url" >"$BASE/eval/results/$tag.log" 2>&1; then
       echo "capability eval ($tag): done"
