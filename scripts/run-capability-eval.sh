@@ -57,7 +57,7 @@ PROXY_PORT="${PROXY_PORT:-18199}"
 out="/eval/results/$label"
 proxy_log="$EVAL_DIR/results/$label.non200.jsonl"
 mkdir -p "$EVAL_DIR/results"
-rm -f "$proxy_log"
+rm -f "$proxy_log" "${proxy_log/.non200.jsonl/.padded.jsonl}"
 
 echo "[$(date -u +%FT%TZ)] eval $label model=$model url=$base_url"
 curl -fsS "$base_url/health" >/dev/null || { echo "endpoint not healthy: $base_url" >&2; exit 1; }
