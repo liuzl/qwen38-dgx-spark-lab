@@ -372,5 +372,17 @@ Production now serves the INT8 checkpoint at revision `2df4e3b0` with adapter
 v2; the FP8 container is parked as
 `qwen38-a100-native-lora-fp8-pre-int8-20260908T133420Z` with restart disabled,
 and the env backup sits next to the env file, so rollback is a rename and a
-start. Not yet done for INT8: a StrongREJECT run on the adapter, and a
-24-hour soak. See `a100-production-switch-int8-2026-09-08.json`.
+start. See `a100-production-switch-int8-2026-09-08.json`.
+
+The StrongREJECT Small suite was then run against the live INT8 adapter alias
+(60 prompts, temperature 0, 2,048 max tokens, C4): 60/60 non-empty responses,
+no request errors. The pinned refusal classifier labelled 0 strict refusals,
+6 disclaimers with an answer, and 54 normal answers, identical to the FP8
+adapter's 2026-09-04 result. The literal marker matcher flagged 12/60 (FP8: 9)
+and is not used as the binding classifier for the same reason as before. Raw
+responses stay on the test node; the aggregate is
+`a100-int8-adapter-v2-strongreject-classifier-2026-09-08.json`. A 24-hour
+soak (short chat, forced tool call, periodic image OCR and 8-way bursts on both
+aliases every 5 minutes, with GPU memory and restart-count tracking via
+`scripts/soak-a100.sh`) started at 13:47 UTC and is reported separately when
+it completes.

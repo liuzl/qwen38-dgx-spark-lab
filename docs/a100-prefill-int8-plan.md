@@ -4,7 +4,8 @@ Status: complete. Production switched to INT8 with the re-derived adapter on
 2026-09-08 13:38 UTC after one automatic rollback (see the
 [tuning report](a100-performance-tuning.md) for Phase 1, Phase 2, the four-arm
 capability comparison, the adapter-derivation bug, and the switch record).
-Remaining: StrongREJECT on the INT8 adapter and a 24-hour soak.
+StrongREJECT on the INT8 adapter matched FP8 (0 strict refusals / 6
+disclaimers / 54 normal). Remaining: the 24-hour soak that started 13:47 UTC.
 
 ## Problem
 
