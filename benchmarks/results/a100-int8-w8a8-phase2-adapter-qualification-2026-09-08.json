@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "date": "2026-09-08",
-  "run_id": "int8-phase2-adapter-20260908",
+  "run_id": "int8-phase2-adapter-v2-20260908",
   "status": "phase2_gates_passed_both_aliases",
   "hardware": "1x NVIDIA A100 80GB PCIe",
   "stack": {
@@ -18,8 +18,9 @@
     "kernel_gate": "CutlassInt8ScaledMMLinearKernel"
   },
   "adapter": {
-    "conversion": "qwen38-rank1-to-lora (compressed-tensors INT8 support)",
-    "adapter_sha256": "a8d013f8db91137ebed5386206d03407bd91dd276c760c6418b366fed6fc9329",
+    "version": "v2",
+    "conversion": "qwen38-rank1-to-lora with corrected compressed-tensors decoding (+128 byte offset)",
+    "adapter_sha256": "9c2b7c40d7d385d7db25cbf00f80cacf955f4e6b595a7976cefab0fedb40706f",
     "directions_sha256": "9de12cbe71f38baf2f6b4a21dfcb2b13bd6416ab4785214afce27c7543f05c1d",
     "modules": 128,
     "quantization_counts": {
@@ -111,30 +112,30 @@
       "vs_fp8_k7_production": [
         {
           "name": "code",
-          "exact_match": false,
+          "exact_match": true,
           "left_sha256": "eaec6e8b33ed0cf061ee3cf3bfa4dbe202690a466051cd4ddbf5bb59848c404a",
-          "right_sha256": "5ebaa216443795f82ed068b921f84d8926abee8db919ce654680479de04ffedd",
+          "right_sha256": "eaec6e8b33ed0cf061ee3cf3bfa4dbe202690a466051cd4ddbf5bb59848c404a",
           "left_chars": 540,
-          "right_chars": 628,
-          "first_difference_char": 286
+          "right_chars": 540,
+          "first_difference_char": null
         },
         {
           "name": "chinese_reasoning",
           "exact_match": false,
           "left_sha256": "52529ee193a68381a22b500321af4620d268ffbfb63403a6af91e02e76459432",
-          "right_sha256": "80541aa155c05a5aef5cf151311cf69975f2084cc6cf239ce96198a0d2f5318b",
+          "right_sha256": "bcff97593200204454fbce6ec53a798876d764356b333ba8e876d34f576c12a0",
           "left_chars": 415,
-          "right_chars": 536,
-          "first_difference_char": 22
+          "right_chars": 466,
+          "first_difference_char": 89
         },
         {
           "name": "multilingual",
-          "exact_match": false,
+          "exact_match": true,
           "left_sha256": "18d79e5150d01333f5d30aa15b90fec90b835fed11eb061fd0627f42067f335c",
-          "right_sha256": "3afb1723e382fbe75d6f26012604d0a7ebb702e3025a410b2bf74524027c79db",
+          "right_sha256": "18d79e5150d01333f5d30aa15b90fec90b835fed11eb061fd0627f42067f335c",
           "left_chars": 40,
-          "right_chars": 42,
-          "first_difference_char": 4
+          "right_chars": 40,
+          "first_difference_char": null
         },
         {
           "name": "structured",
@@ -194,37 +195,45 @@
   "stability": {
     "qwen3.8-27b": {
       "schema_version": 1,
-      "created_at": "2026-09-08T10:45:59.228016+00:00",
+      "created_at": "2026-09-08T13:06:08.302411+00:00",
       "model": "qwen3.8-27b",
       "requests": 64,
       "concurrency": 32,
-      "elapsed_s": 4.63,
+      "elapsed_s": 3.1535,
       "successes": 64,
       "failures": [],
-      "request_rate": 13.8229,
-      "latency_s_mean": 2.2049,
-      "latency_s_max": 3.9643,
+      "request_rate": 20.2948,
+      "latency_s_mean": 1.4644,
+      "latency_s_max": 2.5554,
       "usage_reported_for_all": true
     },
     "qwen3.8-27b-uncensored": {
       "schema_version": 1,
-      "created_at": "2026-09-08T10:46:04.144953+00:00",
+      "created_at": "2026-09-08T13:06:11.730184+00:00",
       "model": "qwen3.8-27b-uncensored",
       "requests": 64,
       "concurrency": 32,
-      "elapsed_s": 2.7245,
+      "elapsed_s": 2.982,
       "successes": 64,
       "failures": [],
-      "request_rate": 23.4908,
-      "latency_s_mean": 1.2608,
-      "latency_s_max": 2.215,
+      "request_rate": 21.4619,
+      "latency_s_mean": 1.3785,
+      "latency_s_max": 2.3498,
       "usage_reported_for_all": true
+    }
+  },
+  "superseded": {
+    "run_id": "int8-phase2-adapter-20260908",
+    "what_it_actually_measured": "FP8-derived adapter d6167653 served on the INT8 target because the driver sourced the production env after setting ADAPTER_DIR",
+    "adapter_v1": {
+      "sha256": "a8d013f8db91137ebed5386206d03407bd91dd276c760c6418b366fed6fc9329",
+      "defect": "pack-quantized bytes decoded as two's complement instead of offset-128; wrong weights for all 112 W8A16 modules",
+      "symptom": "forced tool call for Singapore returned Lisbon deterministically; chinese_reasoning canary ran to the 512-token cap; production switch at 12:30 UTC rolled back automatically"
     }
   },
   "not_covered": [
     "StrongREJECT safety run on the INT8 adapter",
     "24-hour soak",
-    "production replay",
     "long-context >16K quality"
   ]
 }

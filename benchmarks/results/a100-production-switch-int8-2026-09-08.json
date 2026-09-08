@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-08",
+  "run_id": "prod-switch-20260908T133420Z",
+  "status": "production_switched_to_int8",
+  "from": {
+    "model": "Qwen/Qwen3.8-27B-FP8",
+    "revision": "017b9c7af6b5689d5dd426a76e0bc077eb5ca20a",
+    "adapter": "adapter-fp8-017b9c7a (d6167653)",
+    "dtype": "auto"
+  },
+  "to": {
+    "model": "Freaksterz/Qwen3.8-27B-SmoothQuant-W8A8-INT8",
+    "revision": "2df4e3b00d4b865d59a7de0dc286fb18fd455a1e",
+    "adapter": "adapter-int8-2df4e3b0-v2 (9c2b7c40)",
+    "dtype": "bfloat16"
+  },
+  "unchanged": [
+    "vLLM 0.28.0 image",
+    "MTP K7",
+    "CUDA graph FULL_AND_PIECEWISE, capture size 256",
+    "max_model_len 131072",
+    "24 GiB BF16 KV",
+    "max_num_seqs 32",
+    "max_num_batched_tokens 16384",
+    "image limits and media-domain block",
+    "port 18103",
+    "restart unless-stopped"
+  ],
+  "timeline_utc": {
+    "first_attempt": "12:30:51 switch, 12:33:45 healthy, 12:33:48 API smoke FAILED (adapter v1: tool argument Lisbon), 12:36:01 rolled back to FP8",
+    "second_attempt": "13:34:20 switch, 13:37:14 healthy (172 s), 13:37:14-13:37:37 all gates passed, 13:38 replay, DONE"
+  },
+  "kernel_gate": "Selected CutlassInt8ScaledMMLinearKernel for CompressedTensorsW8A8Int8",
+  "gates": {
+    "api_smoke": [
+      {
+        "model": "qwen3.8-27b",
+        "chat": "api-ok",
+        "messages": "messages-ok",
+        "responses_output_types": [
+          "message"
+        ],
+        "responses": "responses-ok",
+        "forced_tool": {
+          "name": "get_weather",
+          "arguments": "{\"city\": \"Singapore\"}"
+        }
+      },
+      {
+        "model": "qwen3.8-27b-uncensored",
+        "chat": "api-ok",
+        "messages": "messages-ok",
+        "responses_output_types": [
+          "message"
+        ],
+        "responses": "responses-ok",
+        "forced_tool": {
+          "name": "get_weather",
+          "arguments": "{\"city\": \"Singapore\"}"
+        }
+      }
+    ],
+    "canaries_all_passed": {
+      "qwen3.8-27b": true,
+      "qwen3.8-27b-uncensored": true
+    },
+    "multimodal": [
+      "ok: qwen3.8-27b chat image",
+      "ok: qwen3.8-27b responses image",
+      "ok: qwen3.8-27b messages image",
+      "ok: qwen3.8-27b-uncensored chat image",
+      "ok: qwen3.8-27b-uncensored responses image",
+      "ok: qwen3.8-27b-uncensored messages image",
+      "ok: remote media URL denied (400)",
+      "ok: image-count limit enforced (400)"
+    ],
+    "prefix_cache_isolation": [
+      0.0,
+      2496.0,
+      0.0,
+      2496.0
+    ],
+    "stability": {
+      "qwen3.8-27b": {
+        "concurrency": 32,
+        "elapsed_s": 3.1326,
+        "successes": 64,
+        "failures": []
+      },
+      "qwen3.8-27b-uncensored": {
+        "concurrency": 32,
+        "elapsed_s": 3.1663,
+        "successes": 64,
+        "failures": []
+      }
+    }
+  },
+  "replay_1_repetition": [
+    {
+      "model": "qwen3.8-27b",
+      "case": "text_1k_c1",
+      "ttft_s": 0.3113,
+      "decode_tok_s": 145.7776,
+      "aggregate_tok_s": 124.166,
+      "failures": 0
+    },
+    {
+      "model": "qwen3.8-27b",
+      "case": "text_16k_c1",
+      "ttft_s": 3.5256,
+      "decode_tok_s": 119.8698,
+      "aggregate_tok_s": 45.2749,
+      "failures": 0
+    },
+    {
+      "model": "qwen3.8-27b-uncensored",
+      "case": "text_1k_c1",
+      "ttft_s": 0.3536,
+      "decode_tok_s": 133.6056,
+      "aggregate_tok_s": 113.1153,
+      "failures": 0
+    },
+    {
+      "model": "qwen3.8-27b-uncensored",
+      "case": "text_16k_c1",
+      "ttft_s": 3.9334,
+      "decode_tok_s": 135.8205,
+      "aggregate_tok_s": 44.0457,
+      "failures": 0
+    }
+  ],
+  "rollback": {
+    "container": "qwen38-a100-native-lora-fp8-pre-int8-20260908T133420Z (stopped, restart=no)",
+    "env_backup": ".multimodal.env.before-prod-switch-20260908T133420Z",
+    "procedure": "docker stop current; restore env backup; docker rename old back; docker update --restart unless-stopped; docker start"
+  }
+}

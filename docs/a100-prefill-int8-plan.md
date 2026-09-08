@@ -1,14 +1,10 @@
 # A100 prefill optimization plan: INT8 W8A8
 
-Status: Phase 1 complete, 2026-09-08. INT8 K7 passed the decision rule
-(16K TTFT 3.50 s versus 6.48 s; decode -5%; C8 +41%, C32 +62%). Results
-and interpretation are in [the tuning report](a100-performance-tuning.md);
-Phase 2 is complete for both aliases: the adapter was re-derived against
-the INT8 target and every gate passed (API smoke, canaries, images, cache
-isolation, C32 stability). A four-arm capability comparison found no
-measurable FP8-versus-INT8 difference. Remaining before a production switch:
-StrongREJECT on the INT8 adapter, a production replay, and the service
-definition change. See [the tuning report](a100-performance-tuning.md).
+Status: complete. Production switched to INT8 with the re-derived adapter on
+2026-09-08 13:38 UTC after one automatic rollback (see the
+[tuning report](a100-performance-tuning.md) for Phase 1, Phase 2, the four-arm
+capability comparison, the adapter-derivation bug, and the switch record).
+Remaining: StrongREJECT on the INT8 adapter and a 24-hour soak.
 
 ## Problem
 

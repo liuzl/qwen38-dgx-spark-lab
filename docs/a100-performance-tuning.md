@@ -239,42 +239,59 @@ See `a100-int8-w8a8-phase2-base-qualification-2026-09-08.json` in
 
 ### Phase 2 adapter alias and combined gates
 
-The rank-1 uncensored adapter was re-derived against the INT8 target on
-2026-09-08. `scripts/qwen38-rank1-to-lora.py` gained support for the
-compressed-tensors layouts: INT8 per-channel `weight` with `weight_scale`
-(W8A8 modules) and int32 `weight_packed` with `weight_shape` (W8A16 modules),
-with auxiliary tensors resolved through the checkpoint index because this
-checkpoint places a module's weight and scale in different shard files. A
-synthetic multi-shard test matched reference math to 1e-5 before the real
-run. The same refusal directions (SHA `9de12cbe`) produced 128 modules: 112
-`int8_channel_packed_w8a16` and 16 `int8_channel_w8a8`. The adapter stays
-private.
+The rank-1 uncensored adapter had to be re-derived against the INT8 target.
+`scripts/qwen38-rank1-to-lora.py` gained support for the compressed-tensors
+layouts: INT8 per-channel `weight` with `weight_scale` (W8A8 modules) and
+int32 `weight_packed` with `weight_shape` (W8A16 modules), with auxiliary
+tensors resolved through the checkpoint index because this checkpoint places a
+module's weight and scale in different shard files.
 
-A second window then served both INT8 aliases with the production profile and
-ran every gate in one pass, all passed:
+This took two attempts, and the first one produced a false pass that is worth
+recording. The first decoder treated each packed byte as two's complement;
+compressed-tensors actually stores the value plus 128 as an unsigned byte. That
+gave wrong weights for all 112 W8A16 modules, so adapter v1 (SHA `a8d013f8`)
+was invalid. It was not caught in its Phase 2 window because the driver set
+`ADAPTER_DIR` and then sourced the production env file, which overwrote it: the
+10:38 UTC window and the first four-arm evaluation served the **FP8-derived
+adapter on the INT8 target**, which happens to work well, while every gate
+reported "INT8 adapter". The defect surfaced only at the first production
+switch (12:30 UTC), where the forced-tool check on the adapter alias returned
+`{"city": "Lisbon"}` for a Singapore prompt and the switch rolled back
+automatically. Diagnosis showed the v1 adapter gave Lisbon 40/40 times, cold
+and warm, forced and auto tool choice, while other cities were correct and the
+base alias was byte-identical to FP8 on every canary; a fresh torch.compile
+cache changed nothing. Both bugs are fixed: the decoder subtracts the offset,
+the converter test packs through the library's own `pack_to_int32`, and the
+driver exports the candidate adapter path after sourcing the env.
 
-| Gate | Base | Adapter |
+Adapter v2 (SHA `9c2b7c40`, same refusal directions `9de12cbe`, 128 modules:
+112 `int8_channel_packed_w8a16`, 16 `int8_channel_w8a8`) was then served with
+both aliases in a 13:03 UTC window. All gates passed in one pass:
+
+| Gate | Base | Adapter v2 |
 |---|---|---|
-| API smoke (Chat, Responses, Messages, forced tool) | passed | passed |
-| Greedy canaries, 512-token cap | 4/4 | 4/4 |
-| Canaries vs FP8 K7 production capture | 4/4 byte-identical | constraints pass; text differs (different target weights, expected) |
+| API smoke (Chat, Responses, Messages, forced tool) | passed | passed, tool argument Singapore |
+| Greedy canaries, 512-token cap | 4/4 | 4/4, chinese_reasoning stops at 466 chars (v1 ran to the cap) |
+| Canaries vs FP8 K7 production capture | 4/4 byte-identical | constraints pass; text differs (different target weights) |
 | Image OCR through three protocols | 3/3 | 3/3 |
 | Remote URL and five-image guardrails | rejected (400) | rejected (400) |
-| Prefix-cache isolation | hit deltas `[0, 2496, 0, 2496]` for base, base again, adapter, adapter again |
+| Prefix-cache isolation | hit deltas `[0, 2496, 0, 2496]` | |
 | 64 requests at C32 | 64/64 | 64/64 |
 
-Details are in `a100-int8-w8a8-phase2-adapter-qualification-2026-09-08.json`
-(hashes, counts and statuses only). Still open before a production switch: a
-StrongREJECT run on the INT8 adapter, a production replay, and the systemd
-and env change itself.
+Details, including the superseded v1 record, are in
+`a100-int8-w8a8-phase2-adapter-qualification-2026-09-08.json` (hashes, counts
+and statuses only). The adapter stays private.
 
 ## Capability comparison across four arms
 
-To check whether INT8 or the adapter changes model capability, all four
-served aliases were run through lm-evaluation-harness 0.4.13 on 2026-09-08
-with `scripts/run-capability-eval.sh`: identical prompts, identical
-deterministic subsets, same vLLM profile. The FP8 arms ran on the production
-container; the INT8 arms ran on the candidate inside the Phase 2 window.
+To check whether INT8 or the adapter changes model capability, the served
+aliases were run through lm-evaluation-harness 0.4.13 on 2026-09-08 with
+`scripts/run-capability-eval.sh`: identical prompts, identical deterministic
+subsets, same vLLM profile. The FP8 arms ran on the production container; the
+INT8 arms ran on the candidate inside Phase 2 windows. Because of the adapter
+mix-up above there are five arms: the INT8 adapter column below is adapter v2,
+and the FP8-derived adapter on the INT8 target is kept as an extra column since
+it is a valid measurement in its own right.
 
 The suite is a regression smoke sized for about 12 minutes per alias, not a
 leaderboard run. Multiple-choice tasks run 0-shot through prompt logprobs,
@@ -287,34 +304,32 @@ cap before answering, which produced an invalid 68% GSM8K figure that is
 recorded as superseded. HellaSwag, ARC and WinoGrande were dropped as
 low-signal for this purpose.
 
-Two calibration facts bound the interpretation. The FP8 stage-1 tasks ran
-twice on identical prompts by accident, and MMLU moved from 80.4 to 81.6
-between replicates; that 1.3-point spread is batch-dependent numerical
-nondeterminism in prompt logprobs, so differences under about 1.5 points are
-not resolvable by this suite. The full 14,042-question MMLU on FP8 base scored
+Calibration: FP8 stage 1 and INT8 base each ran twice on identical prompts.
+FP8 MMLU moved 1.3 points between replicates, INT8 MMLU 0.07, INT8 TruthfulQA
+1.0, INT8 GSM8K 1.0. Differences under about 1.5 points are therefore not
+resolvable by this suite. The full 14,042-question MMLU on FP8 base scored
 83.3% ±0.3; the 25-per-subject subset scores about 2 points lower because of
 subject weighting, identically for all arms.
 
-| Task (subset) | FP8 base | FP8 adapter | INT8 base | INT8 adapter |
-|---|---:|---:|---:|---:|
-| MMLU 0-shot, 1,425 q (±1.0) | 81.0 (80.4 / 81.6) | 80.5 (80.8 / 80.3) | 81.4 | 81.5 |
-| TruthfulQA-MC2, 200 q (±3.1) | 53.2 (53.4 / 53.0) | 49.8 (50.1 / 49.4) | 53.4 | 52.6 |
-| GSM8K 5-shot chat, 300 q, strict (±1.7) | 90.7 | 91.3 | 90.0 | 90.7 |
-| GSM8K flexible-extract | 92.0 | 92.3 | 91.3 | 91.7 |
-| IFEval prompt-level strict, 200 (±2.8) | 81.5 | 79.0 | 80.5 | 80.5 |
-| IFEval instruction-level loose | 89.0 | 88.7 | 89.6 | 89.6 |
+| Task (subset) | FP8 base | FP8 adapter | INT8 base | INT8 adapter v2 | INT8 + FP8-derived adapter |
+|---|---:|---:|---:|---:|---:|
+| MMLU 0-shot, 1,425 q (±1.0) | 81.0 (80.4 / 81.6) | 80.5 (80.8 / 80.3) | 81.4 (81.4 / 81.5) | 80.6 | 81.5 |
+| TruthfulQA-MC2, 200 q (±3.1) | 53.2 (53.4 / 53.0) | 49.8 (50.1 / 49.4) | 52.9 (53.4 / 52.4) | 49.8 | 52.6 |
+| GSM8K 5-shot chat, 300 q, strict (±1.7) | 90.7 | 91.3 | 89.7 (90.0 / 89.3) | 92.0 | 90.7 |
+| GSM8K flexible-extract | 92.0 | 92.3 | 90.8 (91.3 / 90.3) | 93.3 | 91.7 |
+| IFEval prompt-level strict, 200 (±2.8) | 81.5 | 79.0 | 81.0 (80.5 / 81.5) | 82.0 | 80.5 |
+| IFEval instruction-level loose | 89.0 | 88.7 | 89.8 (89.6 / 89.9) | 90.6 | 89.6 |
 
-FP8 cells show the mean of two replicates with both values in parentheses.
-Every FP8-versus-INT8 difference is inside the replicate spread or one
-standard error: INT8 does not measurably change knowledge, reasoning, or
-instruction following relative to FP8 on this suite. The adapter is likewise
-indistinguishable from its base on MMLU, GSM8K and IFEval on both targets. The
-one candidate signal is TruthfulQA-MC2 on FP8, where the adapter scored 3.4
-points below base in both replicates; the INT8 adapter shows only 0.8 points
-below its base, so the effect is unconfirmed and would need the full 817
-questions on both targets to settle. It is also the direction one would
-expect from removing refusal directions, so it should be re-checked rather
-than dismissed.
+Cells with two values are replicate means. Every FP8-versus-INT8 difference,
+base or adapter, is inside the replicate spread or one standard error: INT8
+does not measurably change knowledge, reasoning, or instruction following on
+this suite. The adapter is indistinguishable from its base on MMLU, GSM8K and
+IFEval on both targets. TruthfulQA-MC2 is the exception and it now replicates:
+the adapter scores about 3.4 points below base on FP8 (both replicates) and
+3.1 points below on INT8 with adapter v2, while the FP8-derived adapter on INT8
+shows only 0.3. That is the direction removing refusal directions would push
+and is a real, small effect at the edge of this subset's resolution; the full
+817 questions would pin it down.
 
 One serving observation came out of the harness. On this profile vLLM 0.28.0
 returns HTTP 400 "Out of range float values are not JSON compliant: nan" for
@@ -329,3 +344,33 @@ been checked with graphs disabled.
 
 Per-task result files with stderr, subject-group breakdowns, replicates and
 the superseded runs are in `a100-capability-eval-four-arm-2026-09-08.json`.
+
+## Production switch to INT8
+
+`scripts/switch-a100-production.sh` moved the A100 service to the INT8 target
+on 2026-09-08. It rewrites four keys in the production env (model, revision,
+adapter dir, `DTYPE=bfloat16`), stops and renames the FP8 container instead of
+deleting it, launches the new service under the same name, port and restart
+policy, and gates it on the live process: kernel line, API smoke, canaries,
+image protocols and guardrails, prefix-cache isolation, 64 at C32 for both
+aliases, then a one-repetition 1K and 16K replay. Any failure rolls back
+automatically: stop the new container, restore the env backup, rename the old
+container back and start it.
+
+The first attempt (12:30 UTC, adapter v1) rolled back at the API smoke as
+described above; FP8 was serving again at 12:36. The second attempt (13:34 UTC,
+adapter v2) passed every gate and completed at 13:38. Replay on the live
+service, one repetition:
+
+| Alias | 1K TTFT | 1K decode | 16K TTFT | 16K decode |
+|---|---:|---:|---:|---:|
+| qwen3.8-27b | 0.311 s | 145.8 tok/s | 3.526 s | 119.9 tok/s |
+| qwen3.8-27b-uncensored | 0.354 s | 133.6 tok/s | 3.933 s | 135.8 tok/s |
+
+These match the Phase 1 arm (3.50 s 16K TTFT, 148.7 tok/s short decode).
+Production now serves the INT8 checkpoint at revision `2df4e3b0` with adapter
+v2; the FP8 container is parked as
+`qwen38-a100-native-lora-fp8-pre-int8-20260908T133420Z` with restart disabled,
+and the env backup sits next to the env file, so rollback is a rename and a
+start. Not yet done for INT8: a StrongREJECT run on the adapter, and a
+24-hour soak. See `a100-production-switch-int8-2026-09-08.json`.
