@@ -30,7 +30,8 @@ INT8_MODEL="${INT8_MODEL:-Freaksterz/Qwen3.8-27B-SmoothQuant-W8A8-INT8}"
 INT8_REVISION="${INT8_REVISION:-2df4e3b00d4b865d59a7de0dc286fb18fd455a1e}"
 SPEC="${SPEC:-{\"method\":\"mtp\",\"num_speculative_tokens\":7\}}"
 MODEL_NAME="${SERVED_MODEL_NAME:-qwen3.8-27b}"
-ADAPTER_DIR="${ADAPTER_DIR-$BASE/artifacts/adapter-int8-2df4e3b0}"
+ADAPTER_DIR="${ADAPTER_DIR-$BASE/artifacts/adapter-int8-2df4e3b0-v2}"
+CANDIDATE_ADAPTER_DIR="$ADAPTER_DIR"
 ADAPTER_NAME="${ADAPTER_MODEL_NAME:-qwen3.8-27b-uncensored}"
 RUN_EVAL="${RUN_EVAL:-0}"
 IMAGE_FIXTURE="${IMAGE_FIXTURE:-$LOGS/perf-image.png}"   # renders the digits 7429
@@ -82,8 +83,10 @@ echo "[$(date -u +%FT%TZ)] starting candidate $CAND model=$INT8_MODEL@${INT8_REV
   set -a
   # shellcheck disable=SC1091
   source "$BASE/.multimodal.env"
+  # NOTE: the env file also defines ADAPTER_DIR; use the value captured before
+  # sourcing, otherwise the production (FP8-derived) adapter is served instead.
   export MODEL="$INT8_MODEL" MODEL_REVISION="$INT8_REVISION" DTYPE=bfloat16
-  export ADAPTER_DIR="$ADAPTER_DIR" ADAPTER_MODEL_NAME="$ADAPTER_NAME"
+  export ADAPTER_DIR="$CANDIDATE_ADAPTER_DIR" ADAPTER_MODEL_NAME="$ADAPTER_NAME"
   set +a
   CONTAINER=$CAND PORT=$CAND_PORT RESTART_POLICY=no SPECULATIVE_CONFIG="$SPEC" \
     bash "$LAB/scripts/serve-a100.sh"

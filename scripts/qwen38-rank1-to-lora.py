@@ -18,7 +18,8 @@ weights with two-dimensional 128x128 inverse block scales. The converter also
 supports checkpoints without a safetensors index by discovering layer shards.
 Compressed-tensors INT8 checkpoints store W8A8 modules as int8 ``weight`` with a
 per-channel ``weight_scale`` and W8A16 modules as ``weight_packed`` int32 (four
-int8 values per word, value ``i`` at bits ``8*i``) with ``weight_shape``.
+offset-128 unsigned bytes per word, value ``i`` at bits ``8*i``) with
+``weight_shape``.
 It consumes all layouts directly and never materializes a complete
 dequantized model.
 """
@@ -109,12 +110,17 @@ def nvfp4_weight_chunk(
 
 
 def unpack_int8_from_int32(packed: torch.Tensor, columns: int) -> torch.Tensor:
-    """Decode compressed-tensors pack-quantized int32 words into signed int8."""
+    """Decode compressed-tensors pack-quantized int32 words into signed int8.
+
+    compressed-tensors ``pack_to_int32`` stores value ``v`` as the unsigned byte
+    ``v + 128`` (value ``i`` at bits ``8*i``); it is NOT two's complement.
+    ``unpack_from_int32`` reverses it with ``byte - 128``.
+    """
     if packed.dtype != torch.int32:
         raise TypeError(f"packed weight must be int32, got {packed.dtype}")
-    parts = [((packed >> (8 * i)) & 0xFF).to(torch.uint8) for i in range(4)]
+    parts = [((packed >> (8 * i)) & 0xFF).to(torch.int16) for i in range(4)]
     unpacked = torch.stack(parts, dim=-1).reshape(packed.shape[0], -1)
-    return unpacked[:, :columns].view(torch.int8)
+    return (unpacked[:, :columns] - 128).to(torch.int8)
 
 
 def int8_channel_weight_chunk(
