@@ -129,6 +129,28 @@ def int8_channel_weight_chunk(
     return weight[start:end].float() * scale_f32[start:end, None]
 
 
+class TensorStore:
+    """Resolve tensors through the checkpoint weight map across shards."""
+
+    def __init__(self, model: Path, weight_map: dict[str, str]):
+        self.model = model
+        self.weight_map = weight_map
+        self._handles: dict[str, Any] = {}
+
+    def has(self, name: str) -> bool:
+        return name in self.weight_map
+
+    def get(self, name: str) -> torch.Tensor:
+        shard = self.weight_map.get(name)
+        if shard is None:
+            raise KeyError(f"tensor not found in weight map: {name}")
+        handle = self._handles.get(shard)
+        if handle is None:
+            handle = safe_open(self.model / shard, framework="pt", device="cpu")
+            self._handles[shard] = handle
+        return handle.get_tensor(name)
+
+
 def weight_tensor_name(weight_map: dict[str, str], module: str) -> str:
     for suffix in (".weight", ".weight_packed"):
         if f"{module}{suffix}" in weight_map:
@@ -144,87 +166,81 @@ def adapter_module_name(direction_name: str) -> str:
 
 
 def build_lora_pair(
-    shard: Path,
+    store: TensorStore,
     module: str,
+    weight_name: str,
     direction: torch.Tensor,
     coef: float,
     row_chunk: int,
-    weight_name: str | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor, str]:
-    weight_name = weight_name or f"{module}.weight"
-    with safe_open(shard, framework="pt", device="cpu") as handle:
-        weight = handle.get_tensor(weight_name)
-        if weight_name.endswith(".weight_packed"):
-            if weight.dtype != torch.int32:
-                raise TypeError(f"{module}: packed weight must be int32")
-            shape = handle.get_tensor(f"{module}.weight_shape")
-            rows, columns = (int(v) for v in shape)
-            if rows != weight.shape[0]:
-                raise ValueError(
-                    f"{module}: weight_shape rows {rows} != {weight.shape[0]}"
-                )
-            weight = unpack_int8_from_int32(weight, columns)
-            packed_int8 = True
+    weight = store.get(weight_name)
+    if weight_name.endswith(".weight_packed"):
+        if weight.dtype != torch.int32:
+            raise TypeError(f"{module}: packed weight must be int32")
+        rows, columns = (int(v) for v in store.get(f"{module}.weight_shape"))
+        if rows != weight.shape[0]:
+            raise ValueError(f"{module}: weight_shape rows {rows} != {weight.shape[0]}")
+        weight = unpack_int8_from_int32(weight, columns)
+        packed_int8 = True
+    else:
+        packed_int8 = False
+    if weight.shape[0] != direction.numel():
+        raise ValueError(
+            f"{module}: output mismatch weight={tuple(weight.shape)} "
+            f"direction={tuple(direction.shape)}"
+        )
+
+    if weight.dtype == torch.int8:
+        scale = store.get(f"{module}.weight_scale")
+        input_size = weight.shape[1]
+        quant = "int8_channel_packed_w8a16" if packed_int8 else "int8_channel_w8a8"
+
+        def get_chunk(start: int, end: int) -> torch.Tensor:
+            return int8_channel_weight_chunk(weight, scale, start, end)
+
+    elif weight.dtype == torch.uint8:
+        block_scale = store.get(f"{module}.weight_scale")
+        global_scale = store.get(f"{module}.weight_scale_2")
+        input_size = weight.shape[1] * 2
+        quant = "nvfp4"
+
+        def get_chunk(start: int, end: int) -> torch.Tensor:
+            return nvfp4_weight_chunk(weight, block_scale, global_scale, start, end)
+
+    elif weight.dtype in (torch.float8_e4m3fn, torch.float8_e5m2):
+        inverse_scale_name = f"{module}.weight_scale_inv"
+        scale_name = f"{module}.weight_scale"
+        if store.has(inverse_scale_name):
+            scale = store.get(inverse_scale_name)
+            block_size = (128, 128)
+            quant = "fp8_block_128x128"
+        elif store.has(scale_name):
+            scale = store.get(scale_name)
+            block_size = None
+            quant = "fp8"
         else:
-            packed_int8 = False
-        if weight.shape[0] != direction.numel():
-            raise ValueError(
-                f"{module}: output mismatch weight={tuple(weight.shape)} "
-                f"direction={tuple(direction.shape)}"
-            )
+            raise KeyError(f"FP8 scale not found for {module}")
+        input_size = weight.shape[1]
 
-        if weight.dtype == torch.int8:
-            scale = handle.get_tensor(f"{module}.weight_scale")
-            input_size = weight.shape[1]
-            quant = "int8_channel_packed_w8a16" if packed_int8 else "int8_channel_w8a8"
+        def get_chunk(start: int, end: int) -> torch.Tensor:
+            return fp8_weight_chunk(weight, scale, start, end, block_size)
 
-            def get_chunk(start: int, end: int) -> torch.Tensor:
-                return int8_channel_weight_chunk(weight, scale, start, end)
+    elif weight.dtype in (torch.float16, torch.bfloat16, torch.float32):
+        input_size = weight.shape[1]
+        quant = str(weight.dtype).removeprefix("torch.")
 
-        elif weight.dtype == torch.uint8:
-            block_scale = handle.get_tensor(f"{module}.weight_scale")
-            global_scale = handle.get_tensor(f"{module}.weight_scale_2")
-            input_size = weight.shape[1] * 2
-            quant = "nvfp4"
+        def get_chunk(start: int, end: int) -> torch.Tensor:
+            return weight[start:end].float()
 
-            def get_chunk(start: int, end: int) -> torch.Tensor:
-                return nvfp4_weight_chunk(weight, block_scale, global_scale, start, end)
+    else:
+        raise TypeError(f"{module}: unsupported weight dtype {weight.dtype}")
 
-        elif weight.dtype in (torch.float8_e4m3fn, torch.float8_e5m2):
-            keys = set(handle.keys())
-            inverse_scale_name = f"{module}.weight_scale_inv"
-            scale_name = f"{module}.weight_scale"
-            if inverse_scale_name in keys:
-                scale = handle.get_tensor(inverse_scale_name)
-                block_size = (128, 128)
-                quant = "fp8_block_128x128"
-            elif scale_name in keys:
-                scale = handle.get_tensor(scale_name)
-                block_size = None
-                quant = "fp8"
-            else:
-                raise KeyError(f"FP8 scale not found for {module}")
-            input_size = weight.shape[1]
-
-            def get_chunk(start: int, end: int) -> torch.Tensor:
-                return fp8_weight_chunk(weight, scale, start, end, block_size)
-
-        elif weight.dtype in (torch.float16, torch.bfloat16, torch.float32):
-            input_size = weight.shape[1]
-            quant = str(weight.dtype).removeprefix("torch.")
-
-            def get_chunk(start: int, end: int) -> torch.Tensor:
-                return weight[start:end].float()
-
-        else:
-            raise TypeError(f"{module}: unsupported weight dtype {weight.dtype}")
-
-        direction = direction.float()
-        lora_a = torch.zeros(input_size, dtype=torch.float32)
-        for start in range(0, weight.shape[0], row_chunk):
-            end = min(start + row_chunk, weight.shape[0])
-            effective_weight = get_chunk(start, end)
-            lora_a.add_(torch.sum(direction[start:end, None] * effective_weight, dim=0))
+    direction = direction.float()
+    lora_a = torch.zeros(input_size, dtype=torch.float32)
+    for start in range(0, weight.shape[0], row_chunk):
+        end = min(start + row_chunk, weight.shape[0])
+        effective_weight = get_chunk(start, end)
+        lora_a.add_(torch.sum(direction[start:end, None] * effective_weight, dim=0))
 
     lora_b = -float(coef) * direction
     return lora_a.unsqueeze(0), lora_b.unsqueeze(1), quant
@@ -254,10 +270,8 @@ def discover_weight_map(model: Path) -> tuple[dict[str, str], str, str | None]:
     for shard in shards:
         with safe_open(shard, framework="pt", device="cpu") as handle:
             for key in handle.keys():  # noqa: SIM118 - safe_open is not iterable
-                if not key.endswith((".weight", ".weight_packed")):
-                    continue
                 if key in weight_map:
-                    raise ValueError(f"duplicate weight across shards: {key}")
+                    raise ValueError(f"duplicate tensor across shards: {key}")
                 weight_map[key] = shard.name
     return weight_map, "safetensors_scan", None
 
@@ -273,6 +287,7 @@ def main() -> None:
         raise SystemExit("--row-chunk must be positive")
 
     weight_map, weight_map_source, index_sha256 = discover_weight_map(args.model)
+    store = TensorStore(args.model, weight_map)
 
     with safe_open(args.directions, framework="pt", device="cpu") as handle:
         metadata = handle.metadata() or {}
@@ -295,14 +310,13 @@ def main() -> None:
 
     for idx, module in enumerate(module_order):
         weight_name = weight_tensor_name(weight_map, module)
-        shard_name = weight_map[weight_name]
         lora_a, lora_b, quant = build_lora_pair(
-            args.model / shard_name,
+            store,
             module,
+            weight_name,
             directions[module],
             float(coefs[idx]),
             args.row_chunk,
-            weight_name,
         )
         vllm_name = adapter_module_name(module)
         key_prefix = f"base_model.model.{vllm_name}"
