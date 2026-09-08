@@ -13,7 +13,6 @@
 # Stage 1 (completions endpoint, no chat template):
 #   mmlu 0-shot, 25 questions per subject (1,425 questions, 5.7k prompts)
 #   truthfulqa_mc2 0-shot, 200 questions
-#   gsm8k 5-shot generative, 300 questions (strict/flexible match)
 #   0-shot for multiple choice is deliberate: vLLM computes prompt logprobs with
 #   full-vocabulary logits per prompt token and cannot use the prefix cache, so
 #   few-shot contexts multiply cost 5-25x (MMLU 5-shot measured at ~25 h). Full
@@ -22,7 +21,12 @@
 #   Dropped as low-signal for this purpose: hellaswag (40k prompts), arc
 #   (0-shot completion scoring is distorted on this chat model), winogrande.
 # Stage 2 (chat completions with the served chat template, thinking off):
-#   ifeval, 200 prompts (instruction following)
+#   gsm8k 5-shot as multi-turn chat, 300 questions (strict/flexible match)
+#   ifeval 0-shot, 200 prompts (instruction following)
+#   gsm8k must go through the chat template: on the raw completions path the
+#   server's enable_thinking=false default does not apply, the model emits a
+#   <think> block and exhausts the 256-token generation cap before the answer
+#   (FP8 base measured 68% that way; 88 of 96 misses had no final answer).
 #
 # Task specs are task:fewshot[:limit]; LIMIT overrides every limit (debugging).
 #
@@ -40,8 +44,8 @@ model="${2:?served model name}"
 base_url="${3:-http://127.0.0.1:18103}"
 EVAL_CONTAINER="${EVAL_CONTAINER:-qwen38-lm-eval}"
 EVAL_DIR="${EVAL_DIR:-/databank/zliu/qwen38-a100/eval}"
-STAGE1="${STAGE1:-mmlu:0:25 truthfulqa_mc2:0:200 gsm8k:5:300}"
-CHAT_TASKS="${CHAT_TASKS:-ifeval:200}"
+STAGE1="${STAGE1:-mmlu:0:25 truthfulqa_mc2:0:200}"
+CHAT_TASKS="${CHAT_TASKS:-gsm8k:5:300 ifeval:0:200}"
 NUM_CONCURRENT="${NUM_CONCURRENT:-16}"
 BATCH="${BATCH:-8}"          # prompts per completions request
 TIMEOUT="${TIMEOUT:-600}"    # seconds per request
@@ -83,20 +87,22 @@ for spec in $STAGE1; do
   echo "  non-200 so far: $(wc -l <"$proxy_log" 2>/dev/null || echo 0)"
 done
 
-if [[ -n "$CHAT_TASKS" ]]; then
-  IFS=: read -r chat_task clim <<<"$CHAT_TASKS"
-  limit_arg=(); [[ -n "${LIMIT:-$clim}" ]] && limit_arg=(--limit "${LIMIT:-$clim}")
-  echo "[$(date -u +%FT%TZ)] stage 2: $chat_task (chat template, limit ${LIMIT:-${clim:-none}})"
+for spec in $CHAT_TASKS; do
+  IFS=: read -r task shots tlimit <<<"$spec"
+  limit_arg=(); [[ -n "${LIMIT:-$tlimit}" ]] && limit_arg=(--limit "${LIMIT:-$tlimit}")
+  fewshot_args=(--num_fewshot "$shots"); (( shots > 0 )) && fewshot_args+=(--fewshot_as_multiturn)
+  echo "[$(date -u +%FT%TZ)] stage 2: $task ($shots-shot chat, limit ${LIMIT:-${tlimit:-none}})"
   docker exec "$EVAL_CONTAINER" lm_eval \
     --model local-chat-completions \
     --model_args "model=$model,base_url=$purl/v1/chat/completions,num_concurrent=$NUM_CONCURRENT,max_retries=3,timeout=$TIMEOUT,tokenized_requests=False,tokenizer=$TOKENIZER,tokenizer_backend=huggingface" \
-    --tasks "$chat_task" \
+    --tasks "$task" "${fewshot_args[@]}" \
     --apply_chat_template \
     --batch_size "$BATCH" \
-    --output_path "$out/chat" \
+    --output_path "$out/chat-$task" \
     --log_samples \
     "${limit_arg[@]}" 2>&1 | grep -E '^\||Error|error|Traceback' | grep -v -E '^\|-|Tasks' || true
-fi
+  echo "  non-200 so far: $(wc -l <"$proxy_log" 2>/dev/null || echo 0)"
+done
 
 docker exec "$EVAL_CONTAINER" pkill -f "logproxy.py .* $PROXY_PORT " 2>/dev/null || true
 padded=$(wc -l <"${proxy_log/.non200.jsonl/.padded.jsonl}" 2>/dev/null || echo 0)
