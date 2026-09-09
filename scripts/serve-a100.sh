@@ -29,6 +29,11 @@ allowed_media_domains="${ALLOWED_MEDIA_DOMAINS:-}"
 mm_processor_cache_gb="${MM_PROCESSOR_CACHE_GB:-1}"
 mm_processor_kwargs="${MM_PROCESSOR_KWARGS:-}"
 enable_prefix_caching="${ENABLE_PREFIX_CACHING:-1}"
+enable_prompt_tokens_details="${ENABLE_PROMPT_TOKENS_DETAILS:-1}"
+fingerprint_mode="${FINGERPRINT_MODE:-full}"
+fingerprint_value="${FINGERPRINT_VALUE:-}"
+docker_log_max_size="${DOCKER_LOG_MAX_SIZE:-20m}"
+docker_log_max_file="${DOCKER_LOG_MAX_FILE:-5}"
 enable_chunked_prefill="${ENABLE_CHUNKED_PREFILL:-1}"
 kv_cache_bytes="${KV_CACHE_BYTES:-}"
 restart_policy="${RESTART_POLICY:-no}"
@@ -112,16 +117,40 @@ else
 fi
 if [[ "$enable_prefix_caching" == 1 ]]; then
   engine_args+=(--enable-prefix-caching)
-elif [[ "$enable_prefix_caching" != 0 ]]; then
+elif [[ "$enable_prefix_caching" == 0 ]]; then
+  engine_args+=(--no-enable-prefix-caching)
+else
   echo "ENABLE_PREFIX_CACHING must be 0 or 1" >&2
   exit 1
 fi
 if [[ "$enable_chunked_prefill" == 1 ]]; then
   engine_args+=(--enable-chunked-prefill)
-elif [[ "$enable_chunked_prefill" != 0 ]]; then
+elif [[ "$enable_chunked_prefill" == 0 ]]; then
+  engine_args+=(--no-enable-chunked-prefill)
+else
   echo "ENABLE_CHUNKED_PREFILL must be 0 or 1" >&2
   exit 1
 fi
+if [[ "$enable_prompt_tokens_details" == 1 ]]; then
+  engine_args+=(--enable-prompt-tokens-details)
+elif [[ "$enable_prompt_tokens_details" == 0 ]]; then
+  engine_args+=(--no-enable-prompt-tokens-details)
+else
+  echo "ENABLE_PROMPT_TOKENS_DETAILS must be 0 or 1" >&2
+  exit 1
+fi
+case "$fingerprint_mode" in
+  full|hash|none) ;;
+  custom)
+    if [[ -z "$fingerprint_value" ]]; then
+      echo "FINGERPRINT_VALUE is required when FINGERPRINT_MODE=custom" >&2
+      exit 1
+    fi
+    engine_args+=(--fingerprint-value "$fingerprint_value")
+    ;;
+  *) echo "FINGERPRINT_MODE must be full, hash, custom or none" >&2; exit 1 ;;
+esac
+engine_args+=(--fingerprint-mode "$fingerprint_mode")
 if [[ -n "$kv_cache_bytes" ]]; then
   engine_args+=(--kv-cache-memory-bytes "$kv_cache_bytes")
 fi
@@ -148,6 +177,9 @@ fi
   --ipc=host \
   --network host \
   --restart "$restart_policy" \
+  --log-driver json-file \
+  --log-opt "max-size=$docker_log_max_size" \
+  --log-opt "max-file=$docker_log_max_file" \
   --health-cmd "curl -fsS http://127.0.0.1:$port/health >/dev/null || exit 1" \
   --health-interval 30s \
   --health-timeout 5s \
