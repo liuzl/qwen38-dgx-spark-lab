@@ -2,14 +2,16 @@
 
 Status: complete. Production switched to INT8 with the re-derived adapter on
 2026-09-08 13:38 UTC after one automatic rollback (see the
-[tuning report](a100-performance-tuning.md) for Phase 1, Phase 2, the four-arm
+[tuning report](a100-performance-tuning.md) for Phase 1, Phase 2, the five-arm
 capability comparison, the adapter-derivation bug, and the switch record).
 StrongREJECT on the INT8 adapter matched FP8 (0 strict refusals / 6
-disclaimers / 54 normal). Remaining: the 24-hour soak that started 13:47 UTC.
+disclaimers / 54 normal). A 24-hour soak was started at 13:47 UTC; no completed
+result is archived here as of 2026-09-09. The plan below preserves the
+pre-switch problem statement and experiment design.
 
 ## Problem
 
-The current A100 service (official `Qwen/Qwen3.8-27B-FP8`, vLLM 0.28.0,
+The pre-switch A100 service (official `Qwen/Qwen3.8-27B-FP8`, vLLM 0.28.0,
 CUDA Graph, MTP K7, 128K context) is decode-tuned but prefill-limited. The
 [2026-09-06 tuning](a100-performance-tuning.md) left 16K-input TTFT at about
 6.5 / 7.0 seconds (base / adapter) across every speculative depth, and the

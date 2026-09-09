@@ -2,11 +2,11 @@
 
 Reproducible serving recipes and measured experiments for Qwen3.8-27B on an
 NVIDIA DGX Spark (GB10, `sm_121`), NVIDIA A100, and Apple Silicon. The Spark
-remains the reference serving track; the A100 track starts from a conservative
-FP8/W8A16 vLLM baseline, while the M3 Max track provides a controlled local-inference
-comparison using oMLX and Lightning MTP.
+remains the reference serving track; the A100 track now includes mixed INT8
+W8A8 with native MTP K7, while the M3 Max track provides a controlled
+local-inference comparison using oMLX and Lightning MTP.
 
-The current reference stack serves two model IDs from one vLLM process:
+The DGX Spark reference stack serves two model IDs from one vLLM process:
 
 ```text
 qwen3.8-27b             clean mixed-NVFP4 base
@@ -24,6 +24,45 @@ regression caused by an always-on runtime projection hook.
 > draft weights, direction tensors, credentials, or raw safety-evaluation
 > responses.
 
+## Latest A100 result — 2026-09-08
+
+The recorded A100 service switched from the official FP8 checkpoint to
+[Freaksterz's mixed INT8 W8A8 checkpoint](https://huggingface.co/Freaksterz/Qwen3.8-27B-SmoothQuant-W8A8-INT8)
+with a re-derived native rank-1 adapter. On this Ampere stack, FP8 uses Marlin
+W8A16; the INT8 candidate routes 288 of 400 Linear modules to CUTLASS W8A8,
+while the remaining 112 stay on Marlin W8A16. Both arms use native MTP K7.
+
+| Metric | FP8 K7 control | Mixed INT8 K7 | Change |
+|---|---:|---:|---:|
+| 16K C1 time to first token | 6.482 s | 3.502 s | **−46%** |
+| 1K C1 decode | 156.70 tok/s | 148.70 tok/s | −5% |
+| 1K C8 aggregate output | 355.20 tok/s | 499.77 tok/s | **+41%** |
+| 1K C32 aggregate output | 372.81 tok/s | 603.18 tok/s | **+62%** |
+
+One A100 80GB PCIe, vLLM 0.28.0, thinking off, base alias, exactly 256 output
+tokens, medians of three repetitions. Decode excludes TTFT; aggregate includes
+prefill and the entire concurrent request window. Each arm completed 129
+measured requests without failures. This is a within-A100 comparison; these
+numbers must not be combined with the separate Spark/M3 Max protocol below.
+
+The recorded profile uses static native MTP K7, CUDA Graphs, a 128K admission
+limit, 24 GiB BF16 KV, 32 active sequences, and 16K batched tokens, with image
+inputs enabled. K3 won at C32 in the depth sweeps, but K7 retained better
+single-stream performance. Dynamic depth was not usable on the tested runtime.
+
+Both base and adapter passed API, forced-tool, semantic-canary, image,
+prefix-cache-isolation and bounded C32 checks. Limited capability subsets found
+no clear FP8-versus-INT8 regression; they do not establish lossless quantization
+or general Agent reliability. The adapter's TruthfulQA signal and evaluation
+workarounds are documented separately. The service switch passed after an
+initial automatic rollback caught an invalid adapter. No completed 24-hour soak
+artifact is archived in this repository as of 2026-09-09.
+
+See the [tuning and qualification report](docs/a100-performance-tuning.md),
+[benchmark protocol and artifacts](docs/benchmarks.md#a100-controlled-serving-matrices),
+and [recorded service profile](docs/a100.md#latest-recorded-service-profile).
+Adapter and direction artifacts remain private.
+
 ## Cross-platform result
 
 One client-owned prompt corpus was sent to both qualified stacks with the same
@@ -40,42 +79,6 @@ The M3 Max reaches 73% of Spark's short single-stream decode, but sustained long
 context and concurrency remain Spark strengths. Separately, oMLX prefix caching
 reduced a repeated 5.2K-prefix turn from 25.19 to 6.41 seconds on the M3 Max;
 that is a prefill/TTFT gain, not a decode-speed multiplier.
-
-The A100 qualification subsequently found that the initial compatibility arm
-(FP8 W8A16 Marlin, eager, autoregressive) was misleadingly slow at 11.90 tok/s.
-Enabling the checkpoint's native MTP at depth 3 and vLLM CUDA Graphs raised the
-same short C1 decode to **124.48 tok/s** and C4 aggregate throughput to **251.67
-tok/s**, with 92.37% draft-token acceptance, 4/4 deterministic canaries, and
-64/64 stability requests. A same-protocol BF16 arm was slower at decode but
-faster at long prefill. See [NVIDIA A100 qualification](docs/a100.md).
-
-The Spark refusal-direction method was also ported to the official A100 FP8
-checkpoint. One process now qualifies the portable IDs `qwen3.8-27b` and
-`qwen3.8-27b-uncensored`; both passed all three APIs, forced tools, cache
-isolation, deterministic canaries, and 64-request stability. The adapter's
-StrongREJECT Small classifier result was 0/60 strict refusals, 6 disclaimers
-with an answer, and 54 normal answers. Adapter and direction artifacts remain
-private and are not distributed by this repository.
-
-The A100 deployment now also qualifies image inputs for both aliases through
-Chat Completions, Responses, Anthropic Messages, and image-plus-tool calls.
-Remote HTTP media fetching and video remain disabled; public clients use data
-URLs or protocol-native base64. The same 24 GiB KV pool and 128K text limit are
-retained, with image tokens sharing the request context budget.
-
-The [2026-09-06 image-serving tuning](docs/a100-performance-tuning.md) selects
-MTP K7 with the existing 16K batch budget. In the controlled three-repeat
-matrix, base/adapter short C1 decode rises from 121.74/111.45 to 157.46/146.44
-tok/s; C8 aggregate gains are smaller, and long-input TTFT remains a limitation.
-The 2026-09-08 [INT8 W8A8 prefill arms](docs/a100-performance-tuning.md#int8-w8a8-prefill-arms)
-cut base-alias 16K TTFT from 6.48 to 3.50 s with a 5% short-decode cost.
-Both INT8 aliases, including a re-derived rank-1 adapter, passed the API,
-canary, image, cache-isolation and C32 gates, and a capability comparison
-(MMLU, TruthfulQA, GSM8K, IFEval) showed no measurable difference from FP8.
-**Production switched to INT8 on 2026-09-08** after one automatic rollback
-caused by a converter bug that is documented in the tuning report.
-A 2026-09-07 sweep found K3 faster than K7 at C32 but ruled out vLLM 0.28.0's
-dynamic depth schedule, so K7 remains static.
 
 See [DGX Spark vs Apple M3 Max](docs/cross-platform-comparison.md) for the
 protocol, raw artifacts, interpretation, and limits. Apple setup and the ANE
@@ -126,7 +129,7 @@ interpretation.
 ```text
 docker/                  pinned vLLM overlay for DFlash2 fixes
 scripts/                 serving, conversion, validation and neutral benchmarks
-configs/                 DGX Spark and Apple Silicon environment templates
+configs/                 DGX Spark, A100 and Apple Silicon environment templates
 docs/                    per-platform architecture, comparison and licenses
 benchmarks/results/      aggregate, sanitized machine-readable results
 panel/                    read-only single-Spark vLLM telemetry dashboard
@@ -220,21 +223,30 @@ The optional [Spark LLM Panel](panel/README.md) shows live vLLM and DFlash2
 telemetry without Docker access or host-monitoring duplication. Hardware
 history and alerts remain in Beszel; benchmarks remain command-line only. See
 the [monitoring architecture](docs/monitoring.md) for the boundary and alert
-policy. Its `/apps` view is the private service directory for VoxStudio,
-Beszel, Qwen, LLM telemetry, and the DGX Dashboard.
+policy. Its optional `/apps` view lists operator-configured services; actual
+service URLs and deployment mappings belong in private configuration.
 
 ## Further reading
 
 For a platform-neutral deployment decision framework, see
 [Choosing a Qwen3.8-27B Local Inference Stack](docs/qwen38-local-inference-guide.md).
-For the A100 measurements, FP8/BF16 decision, performance root cause, and
-native uncensored-LoRA port, see the
-[Qwen3.8-27B A100 porting report](docs/a100-porting-report.md).
+For the initial FP8/BF16 comparison and native-LoRA port, see the
+[September 3–4 porting report](docs/a100-porting-report.md). For subsequent
+MTP sweeps, INT8 qualification and the service switch, see the
+[A100 tuning report](docs/a100-performance-tuning.md).
+
+Public research updates on X:
+
+- [2026-08-25: DGX Spark lab and native-LoRA base fast path](https://x.com/liuzl/status/2092168545140617256)
+- [2026-08-26: BF16 lm_head regression on Spark/DFlash2](https://x.com/liuzl/status/2092597944063025222)
+- [2026-09-09: A100 INT8 latency/throughput tradeoff](https://x.com/liuzl/status/2097482398166598136)
 
 ## Status
 
-`v0.2` is an experimental three-platform reference. Before treating any stack
-as a production service, run a workload-specific soak test and validate every
+`v0.2` is an experimental three-platform reference. The recorded A100 service
+switch is a deployment event, not broad production qualification or a live
+health claim. Before relying on any stack for production workloads, run a
+workload-specific soak test and validate every
 new runtime, checkpoint, driver, CUDA, MLX, or operating-system revision.
 
 ## License and attribution

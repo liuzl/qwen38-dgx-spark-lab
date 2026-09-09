@@ -131,8 +131,8 @@
     }
   ],
   "rollback": {
-    "container": "qwen38-a100-native-lora-fp8-pre-int8-20260908T133420Z (stopped, restart=no)",
-    "env_backup": ".multimodal.env.before-prod-switch-20260908T133420Z",
+    "container": "<retained-fp8-container> (stopped, restart=no)",
+    "env_backup": "<private-env-backup>",
     "procedure": "docker stop current; restore env backup; docker rename old back; docker update --restart unless-stopped; docker start"
   }
 }

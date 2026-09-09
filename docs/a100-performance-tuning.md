@@ -1,5 +1,13 @@
 # A100 image-serving performance tuning
 
+Latest recorded outcome: the September 8 service switch selected mixed INT8
+W8A8, static native MTP K7 and adapter v2. The sections below retain each
+experiment's decision at the time; Phase 1 and early Phase 2 pending items were
+subsequently resolved by the [production switch](#production-switch-to-int8).
+No completed 24-hour soak artifact is archived here as of 2026-09-09.
+The [English X summary](https://x.com/liuzl/status/2097482398166598136) was
+published on September 9.
+
 ## Protocol
 
 The 2026-09-06 experiment compares MTP depth on the image-enabled serving
@@ -174,10 +182,13 @@ INT8 K7 cuts 16K TTFT by 46% and C8/C32 TTFT by 45-48%. Short C1 decode
 falls 5% (156.70 to 148.70) and image C1 decode 3%; that is far below the 13%
 single-stream penalty the checkpoint author reported and inside the plan's 15%
 budget. Because prefill is shorter, C8 aggregate rises 41% and C32 aggregate
-62%. Speculative acceptance is unchanged, so the gain is entirely the linear
-kernels, not drafting. The 16,363-token prefill rate moves from about 2,520 to
-about 4,670 tok/s (prompt tokens over TTFT), which exceeds the BF16 arm measured in the porting report
-(about 3,600 tok/s) while keeping 8-bit weights.
+62%. Similar speculative acceptance and the verified kernel routing support
+the interpretation that the main gain comes from the linear compute path;
+this is not a hardware-counter isolation of every latency contribution. The
+16,363-token prefill rate moves from about 2,520 to about 4,670 tok/s (prompt
+tokens over TTFT), which exceeds the historical BF16 arm in the porting report
+(about 3,600 tok/s) while keeping 8-bit weights. That BF16 arm used a different
+profile, so this is contextual evidence rather than the controlled K7 A/B.
 
 INT8 K3 gives the same TTFT as INT8 K7 (prefill does not depend on depth) but
 loses 22-27% of single-stream decode and 10% of C8 aggregate. It wins only at
@@ -191,14 +202,15 @@ Capacity: model loading took 29.31 GiB for INT8 versus 29.36 GiB for FP8; the
 fixed 24 GiB KV pool holds the same 314,572 tokens at K7; graph capture took
 1.00 versus 0.96 GiB. No memory was traded for the speedup.
 
-Decision: INT8 K7 passes every Phase 1 criterion (16K TTFT below 5.0 s, no
-C8/C32 regression, decode loss under 15%) and is promoted to Phase 2 of the
-plan. It is **not** in production. Before promotion the checkpoint must pass
-the four semantic canaries, forced-tool and API checks, and the six image
-combinations, and the rank-1 uncensored adapter must be re-derived against
-the INT8 target and re-qualified, because the FP8-derived adapter does not
-transfer. Prefill quality, long-context behaviour beyond 16K, and sustained
-mixed load remain unmeasured for INT8. Raw measurements are the
+Decision at the end of Phase 1: INT8 K7 passed every criterion (16K TTFT below
+5.0 s, no C8/C32 regression, decode loss under 15%) and was promoted to Phase 2.
+It was **not yet** in production. Before the switch, the checkpoint had to pass
+semantic canaries, forced-tool and API checks, and image checks for both aliases.
+The rank-1 uncensored adapter also had to be re-derived against
+the INT8 target and re-qualified; an FP8-derived adapter could not inherit
+qualification for that target. Quality, long-context behaviour beyond 16K,
+and sustained mixed load were still open at this stage. Subsequent gates and
+the adapter mix-up are recorded below. Raw measurements are the
 `a100-int8-w8a8-*-2026-09-08.json` files in `benchmarks/results/`; they
 contain no generated response text. Server logs remain on the test node.
 
@@ -282,7 +294,7 @@ Details, including the superseded v1 record, are in
 `a100-int8-w8a8-phase2-adapter-qualification-2026-09-08.json` (hashes, counts
 and statuses only). The adapter stays private.
 
-## Capability comparison across four arms
+## Capability comparison across five arms
 
 To check whether INT8 or the adapter changes model capability, the served
 aliases were run through lm-evaluation-harness 0.4.13 on 2026-09-08 with
@@ -321,15 +333,16 @@ subject weighting, identically for all arms.
 | IFEval instruction-level loose | 89.0 | 88.7 | 89.8 (89.6 / 89.9) | 90.6 | 89.6 |
 
 Cells with two values are replicate means. Every FP8-versus-INT8 difference,
-base or adapter, is inside the replicate spread or one standard error: INT8
-does not measurably change knowledge, reasoning, or instruction following on
-this suite. The adapter is indistinguishable from its base on MMLU, GSM8K and
-IFEval on both targets. TruthfulQA-MC2 is the exception and it now replicates:
+base or adapter, is inside the replicate spread or one standard error. These
+limited subsets found no clear FP8-versus-INT8 regression; they do not establish
+statistical equivalence, lossless quantization or general Agent reliability.
+The suite did not resolve an adapter-versus-base difference on MMLU, GSM8K
+or IFEval on either target. TruthfulQA-MC2 shows a repeated downward signal:
 the adapter scores about 3.4 points below base on FP8 (both replicates) and
 3.1 points below on INT8 with adapter v2, while the FP8-derived adapter on INT8
-shows only 0.3. That is the direction removing refusal directions would push
-and is a real, small effect at the edge of this subset's resolution; the full
-817 questions would pin it down.
+shows only 0.3. This remains a signal at the edge of this subset's resolution; the full
+817 questions and uncertainty analysis are needed before asserting a reliable
+capability cost or its cause.
 
 One serving observation came out of the harness. On this profile vLLM 0.28.0
 returns HTTP 400 "Out of range float values are not JSON compliant: nan" for
@@ -369,10 +382,10 @@ service, one repetition:
 
 These match the Phase 1 arm (3.50 s 16K TTFT, 148.7 tok/s short decode).
 Production now serves the INT8 checkpoint at revision `2df4e3b0` with adapter
-v2; the FP8 container is parked as
-`qwen38-a100-native-lora-fp8-pre-int8-20260908T133420Z` with restart disabled,
-and the env backup sits next to the env file, so rollback is a rename and a
-start. See `a100-production-switch-int8-2026-09-08.json`.
+v2. The previous FP8 container was retained with restart disabled, alongside
+a private environment backup for rollback. Exact container names and backup
+locations belong in private deployment records. See
+`a100-production-switch-int8-2026-09-08.json`.
 
 The StrongREJECT Small suite was then run against the live INT8 adapter alias
 (60 prompts, temperature 0, 2,048 max tokens, C4): 60/60 non-empty responses,
@@ -385,4 +398,5 @@ responses stay on the test node; the aggregate is
 soak (short chat, forced tool call, periodic image OCR and 8-way bursts on both
 aliases every 5 minutes, with GPU memory and restart-count tracking via
 `scripts/soak-a100.sh`) started at 13:47 UTC and is reported separately when
-it completes.
+it completes. No completed soak artifact is archived in this repository as of
+2026-09-09; this document does not claim its current running state.

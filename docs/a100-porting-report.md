@@ -10,11 +10,27 @@ For commands, environment constraints, upstream references, and the full test
 sequence, see the [A100 qualification runbook](a100.md).
 
 > [!WARNING]
-> This is a controlled research qualification, not a production deployment.
+> This report preserves the September 3–4 controlled qualification. The later
+> service switch is recorded in the tuning report; it does not establish
+> general production readiness.
 > The repository does not distribute model weights, refusal-direction tensors,
 > LoRA artifacts, credentials, internal topology, or raw safety responses.
 
-## Decision summary
+## Subsequent results — through 2026-09-08
+
+The initial recommendations below are historical. Image qualification and a
+128K capacity profile were followed by static MTP K7 selection and a switch to
+mixed INT8 W8A8 with a re-derived adapter on September 8. In the controlled
+K7 comparison, base 16K TTFT fell from 6.482 to 3.502 s, C32 aggregate rose
+from 372.81 to 603.18 tok/s, and short C1 decode fell 5%.
+
+Use the [latest recorded profile](a100.md#latest-recorded-service-profile)
+and [tuning report](a100-performance-tuning.md) for the later decisions and
+validation limits. Do not substitute those measurements into the older
+FP8/BF16 or Spark comparison tables below. No completed 24-hour soak artifact
+is archived in this repository as of 2026-09-09.
+
+## Initial decision summary — 2026-09-04
 
 - **The A100 is suitable.** Both official FP8 and BF16 checkpoints fit on one
   80GB card, including native MTP and CUDA Graph execution.
@@ -154,7 +170,8 @@ already tuned Spark NVFP4 + DFlash2 stack. See the
 
 Increasing `max_num_batched_tokens` from 8192 to 16384 did not improve 16K TTFT
 or decode. It improved C4 TTFT but slightly reduced C4 decode, leaving aggregate
-throughput nearly unchanged. The qualified default therefore remains 8192. See
+throughput nearly unchanged. The initial benchmark default therefore stayed
+at 8192; the later capacity/image profile uses 16384. See
 the [controlled A/B](../benchmarks/results/a100-fp8-graph-mtp-k3-bt8k-vs-bt16k-2026-09-04.json).
 
 ## Native uncensored LoRA port
@@ -206,7 +223,7 @@ See the [qualification summary](../benchmarks/results/a100-native-lora-qualifica
 [base/adapter performance](../benchmarks/results/a100-native-lora-base-vs-adapter-2026-09-04.json),
 and [classifier aggregate](../benchmarks/results/a100-native-lora-strongreject-classifier-2026-09-04.json).
 
-## Qualified default and remaining limits
+## Initial qualified default and subsequent capacity checks
 
 ```text
 Weights                 official FP8, W8A16 Marlin
@@ -245,6 +262,7 @@ Requalify after any checkpoint, vLLM, driver, CUDA, or kernel change. If CUDA
 Graph fails on a new revision, eager mode is the compatibility rollback; if the
 adapter fails, disable its alias while preserving the clean base path.
 
-The test services were stopped after qualification. No production routing or
-public endpoint was configured. A later loopback-only deployment reused the
-qualified container and portable model IDs.
+The initial test services were stopped after qualification without production
+routing. Later deployments reused the portable IDs, added image serving and
+ultimately switched to INT8. See the dated update at the top of this report;
+the initial FP8 configuration above is preserved as historical evidence.

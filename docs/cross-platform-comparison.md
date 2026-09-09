@@ -1,7 +1,10 @@
 # DGX Spark vs Apple M3 Max
 
-This comparison runs one client-owned prompt corpus against both serving
-stacks. It measures the best qualified stack on each machine, not bare silicon:
+This August 26 comparison runs one client-owned prompt corpus against both
+serving stacks. It measures the qualified stacks at that time, not bare silicon.
+For the later within-A100 INT8 comparison, see the
+[A100 tuning report](a100-performance-tuning.md); its different workload must
+not be inserted into the table below.
 
 | Platform | Serving stack |
 |---|---|

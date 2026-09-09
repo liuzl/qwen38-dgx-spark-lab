@@ -17,12 +17,12 @@ mounts, power controls, or benchmark trigger. Hardware history and alerts stay
 in Beszel. Load-generating benchmarks stay in `scripts/benchmark.sh` and
 `scripts/benchmark-head-ab.sh`.
 
-`/apps` is a server-rendered Tailnet-only directory for the Spark's public and
-private web services. It probes only a fixed server-side allowlist and never
-accepts a browser-supplied target.
+`/apps` is an optional server-rendered directory for operator-configured web
+services. Protect it with private access controls. It probes only a fixed
+server-side allowlist and never accepts a browser-supplied target.
 
-The deployed directory keeps VoxStudio's public Cloudflare hostname distinct
-from every Tailnet-only management and inference endpoint.
+Configure public and private links separately. Actual hostnames, ports and
+route mappings are intentionally omitted from this public documentation.
 
 ## Metrics
 

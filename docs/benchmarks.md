@@ -29,7 +29,38 @@ The 2026-08-26 DGX Spark/M3 Max run is documented in
 decode rate excludes TTFT; aggregate output throughput includes the complete
 concurrent request window.
 
-## Environment
+## A100 controlled serving matrices
+
+The September 6–8 A100 experiments use
+[`benchmark-serving-matrix.py`](../scripts/benchmark-serving-matrix.py), not
+the Spark random-input C1/C8 workloads below. The pinned profile is vLLM
+0.28.0 with images enabled, 128K context, 24 GiB BF16 KV, C32 scheduler,
+16K batched tokens and thinking off. Each arm starts in a fresh process and
+runs three repetitions with exactly 256 output tokens per measured request.
+
+The September 8 precision comparison uses the base alias only, native MTP K7,
+and identical prompt construction: approximately 1K tokens at C1/C8/C32,
+16,363 tokens at C1, and a separate image case. Each K7 arm has 15 case rows
+and 129 individual requests; neither had request failures. Report medians of
+per-repetition metrics, not a pooled request median. C1 decode excludes TTFT;
+aggregate output rate includes prefill and the full concurrent request window.
+Speculative counter deltas include warmups and are a separate metric.
+
+Artifacts:
+
+- [FP8 K7 control](../benchmarks/results/a100-int8-w8a8-fp8-k7-2026-09-08.json)
+- [Mixed INT8 K7](../benchmarks/results/a100-int8-w8a8-int8-k7-2026-09-08.json)
+- [Mixed INT8 K3](../benchmarks/results/a100-int8-w8a8-int8-k3-2026-09-08.json)
+- [Recorded service switch](../benchmarks/results/a100-production-switch-int8-2026-09-08.json)
+- [Capability comparison, including superseded runs](../benchmarks/results/a100-capability-eval-four-arm-2026-09-08.json)
+
+See the [tuning report](a100-performance-tuning.md) for depth sweeps, kernel
+checks, adapter v2 qualification, eval prompt-padding workarounds and limits.
+The capability artifact keeps its original filename but contains five arms;
+use the corrected v2 results, not the superseded adapter qualification.
+Small capability subsets are regression checks, not a proof of equivalence.
+
+## DGX Spark environment
 
 - NVIDIA DGX Spark, GB10 `sm_121`, 128 GB unified memory
 - Ubuntu 24.04 / DGX OS, CUDA 13.0, driver 580.173.02
@@ -81,13 +112,13 @@ measured requests succeeded. The BF16 arm used 1.67 GiB more model-loading
 memory. Sanitized repetitions and exact revisions are in
 `benchmarks/results/dgx-spark-head-ab-2026-08-26.json`.
 
-## C1
+## DGX Spark C1
 
 One random request, fixed 512-token requested input and 2,048 generated tokens,
 ignore EOS, concurrency 1. Five repetitions established the clean baseline;
 the native-LoRA qualification table reports the first matched run after warmup.
 
-## C8
+## DGX Spark C8
 
 Thirty-two random requests, fixed 1,024-token requested input and 256 generated
 tokens, ignore EOS, concurrency 8, seed 101.
@@ -96,7 +127,7 @@ The tokenizer rendered 526 actual tokens in the C1 workload and approximately
 1,036 per C8 request. Report output throughput, TTFT, request failures, DFlash
 acceptance length, and per-position acceptance—not tok/s alone.
 
-## Safety behavior
+## DGX Spark safety behavior
 
 StrongREJECT Small was run with 60 prompts, 2,048 maximum output tokens,
 temperature 0, thinking off, and concurrency 4.
