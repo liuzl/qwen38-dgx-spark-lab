@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hmac
 import math
 import mimetypes
 import os
@@ -21,6 +22,15 @@ from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+
+try:
+    from .audit_reader import AuditReader
+except ImportError:
+    from audit_reader import AuditReader
+
+AUDIT_DB = os.environ.get("PANEL_AUDIT_DB", "")
+AUDIT_TOKEN = os.environ.get("PANEL_AUDIT_TOKEN", "")
+AUDIT_READER = AuditReader(AUDIT_DB) if AUDIT_DB else None
 
 ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
@@ -627,6 +637,43 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path.startswith("/api/audit/"):
+            if AUDIT_READER is None:
+                self._json({"enabled": False, "error": "Request capture is not configured"}, 503)
+                return
+            private = parsed.path != "/api/audit/summary"
+            if private and (not AUDIT_TOKEN or not hmac.compare_digest(
+                self.headers.get("Authorization", ""), "Bearer " + AUDIT_TOKEN
+            )):
+                self._json({"error": "Operator key required"}, 401)
+                return
+            query = urllib.parse.parse_qs(parsed.query)
+            try:
+                hours = min(168, max(1, int(query.get("hours", ["1"])[0])))
+                if parsed.path == "/api/audit/summary":
+                    result = AUDIT_READER.summary(hours)
+                elif parsed.path == "/api/audit/requests":
+                    before = float(query["before"][0]) if "before" in query else None
+                    if before is not None and not math.isfinite(before):
+                        raise ValueError("Invalid cursor")
+                    result = AUDIT_READER.requests(hours, before,
+                        query.get("task", [""])[0], query.get("model", [""])[0])
+                elif parsed.path.startswith("/api/audit/requests/"):
+                    result = AUDIT_READER.detail(parsed.path.rsplit("/", 1)[1])
+                    if result is None:
+                        self._json({"error": "Not found"}, 404)
+                        return
+                else:
+                    self._json({"error": "Not found"}, 404)
+                    return
+            except (ValueError, TypeError):
+                self._json({"error": "Invalid query"}, 400)
+                return
+            except sqlite3.Error:
+                self._json({"enabled": False, "error": "Request capture temporarily unavailable"}, 503)
+                return
+            self._json(result)
+            return
         if parsed.path in {"/apps", "/apps/"}:
             if not ENABLE_SERVICE_DIRECTORY:
                 self._json({"error": "not found"}, 404)
@@ -670,7 +717,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, content_type, body)
 
     def log_message(self, fmt: str, *args: Any) -> None:
-        if self.path not in {"/api/snapshot", "/healthz"}:
+        if self.path not in {"/api/snapshot", "/healthz"} and not self.path.startswith("/api/audit/"):
             super().log_message(fmt, *args)
 
 

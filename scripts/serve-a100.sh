@@ -170,6 +170,17 @@ if [[ -n "$adapter_dir" ]]; then
   )
 fi
 
+# Optional structured request audit; implementation is mounted from this repo.
+if [[ "${ENABLE_REQUEST_AUDIT:-0}" == 1 ]]; then
+  : "${AUDIT_DIR:?AUDIT_DIR is required when ENABLE_REQUEST_AUDIT=1}"
+  mkdir -p "$AUDIT_DIR"
+  mount_args+=(-v "$AUDIT_DIR:/audit")
+  extra_env_args+=(-e PYTHONPATH=/lab/panel -e AUDIT_DB=/audit/requests.db
+    -e "AUDIT_RETENTION_DAYS=${AUDIT_RETENTION_DAYS:-7}")
+  engine_args+=(--middleware request_audit.RequestAuditMiddleware
+    --enable-force-include-usage --enable-per-request-metrics)
+fi
+
 "${docker_args[@]}" rm -f "$container" >/dev/null 2>&1 || true
 "${docker_args[@]}" run -d \
   --name "$container" \

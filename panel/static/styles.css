@@ -275,3 +275,27 @@ code { color: #89918b; }
   .position-bar .bar-track { width: 24px; }
   footer { flex-direction: column; }
 }
+
+.audit-panel { margin-top: 18px; }
+.audit-note { color: #a6afa9; font-size: 13px; line-height: 1.6; }
+.audit-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin: 18px 0; }
+.audit-stat { border: 1px solid #303830; border-radius: 10px; padding: 16px; min-width: 0; }
+.audit-stat span { display: block; color: #a6afa9; font-size: 12px; }
+.audit-stat strong { display: block; margin-top: 9px; font-size: 23px; overflow-wrap: anywhere; }
+.audit-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.audit-panel input, .audit-panel select, .audit-panel button { background: #202620; color: #e6eee6; border: 1px solid #455045; border-radius: 6px; padding: 9px 12px; font: inherit; }
+.audit-panel input { min-width: 0; max-width: 100%; }
+.audit-panel button, .audit-panel summary { cursor: pointer; }
+.audit-panel button:hover { border-color: #c7ff43; }
+.audit-panel :focus-visible { outline: 2px solid #c7ff43; outline-offset: 3px; }
+.audit-panel summary { padding: 14px 0; }
+.audit-table-wrap { overflow-x: auto; }
+.audit-table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+.audit-table th, .audit-table td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #303830; }
+.audit-table th { color: #a6afa9; }
+.audit-table small { display: block; color: #a6afa9; margin-top: 5px; }
+#audit-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 440px; overflow: auto; background: #111711; padding: 16px; border-radius: 8px; font-size: 12px; }
+#audit-detail h4 { margin-bottom: 8px; }
+#audit-more { margin-top: 12px; }
+[hidden] { display: none !important; }
+@media(max-width: 760px) { .audit-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .audit-panel .panel-head { flex-wrap: wrap; gap: 12px; } .audit-stat strong { font-size: 20px; } }

@@ -1,0 +1,20 @@
+--- a/open_webui/routers/openai.py
++++ b/open_webui/routers/openai.py
+@@ -215,6 +215,17 @@
+         custom_headers = await get_custom_headers(config.get('headers'), user, metadata, request=request)
+         headers.update(custom_headers)
+ 
++    # Audit attribution is sent only to the local inference service.
++    upstream = urlparse(url)
++    if upstream.hostname in {"127.0.0.1", "localhost"} and upstream.port == 18103:
++        if user:
++            headers["X-Audit-Caller"] = str(user.id)[:200]
++        task_id = request.headers.get("X-Task-ID") if request else None
++        if not task_id and metadata:
++            task_id = metadata.get("chat_id")
++        if task_id:
++            headers["X-Task-ID"] = str(task_id)[:200]
++
+     return headers, cookies
+ 
+ 

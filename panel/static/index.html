@@ -118,6 +118,36 @@
         </article>
       </section>
 
+      <section class="panel audit-panel" aria-labelledby="audit-title">
+        <div class="panel-head">
+          <div><p class="section-label">REQUEST OBSERVABILITY</p><h2 id="audit-title">近期请求 · Token 与延迟</h2></div>
+          <select id="audit-hours" aria-label="请求统计时间范围"><option value="1">最近 1 小时</option><option value="24">最近 24 小时</option><option value="168">最近 7 天</option></select>
+        </div>
+        <p id="audit-status" class="audit-note" role="status">正在连接请求记录…</p>
+        <div id="audit-cards" class="audit-grid"></div>
+        <p class="audit-note">统计来自已结束请求；未知值显示 —。首 token 优先使用服务端耗时，缺失时取流式首个内容事件（包含 reasoning / tool call）。历史请求无法补录。</p>
+        <details id="audit-private">
+          <summary>管理员 · 请求明细与输入输出</summary>
+          <p class="audit-note">独立管理员密钥；仅保存在当前页面内存中。请求记录默认保留 7 天，正文截断会明确标注。</p>
+          <form id="audit-login" class="audit-controls">
+            <input id="audit-key" type="password" autocomplete="off" placeholder="管理员查看密钥" aria-label="管理员查看密钥" required>
+            <button type="submit">解锁明细</button><button type="button" id="audit-lock">锁定</button>
+          </form>
+          <div id="audit-workspace" hidden>
+            <div class="audit-controls">
+              <input id="audit-task" placeholder="按 X-Task-ID 精确筛选" aria-label="任务 ID">
+              <input id="audit-model" placeholder="按模型名精确筛选" aria-label="模型名">
+              <button id="audit-filter" type="button">筛选 / 刷新</button>
+            </div>
+            <p class="audit-note">任务来源为调用方提供的 X-Task-ID 或网关聊天 ID；调用方为网关验证的用户 ID，直连请求未提供时显示未知。明细列表手动刷新，避免打断阅读。</p>
+            <div class="audit-table-wrap"><table class="audit-table"><thead><tr><th>时间 / 请求</th><th>模型 / 任务 / 调用方</th><th>状态</th><th>输入</th><th>缓存</th><th>输出</th><th>首 token</th><th>总耗时</th></tr></thead><tbody id="audit-rows"></tbody></table></div>
+            <button id="audit-more" type="button" hidden>加载更早请求</button>
+            <article id="audit-detail" hidden><h3>请求详情</h3><p id="audit-detail-note"></p><h4>Usage / 服务端耗时</h4><pre id="audit-usage"></pre><h4>输入（原始 JSON）</h4><pre id="audit-input"></pre><h4>输出（JSON / SSE）</h4><pre id="audit-output"></pre></article>
+          </div>
+          <p id="audit-private-status" class="audit-note" role="status"></p>
+        </details>
+      </section>
+
       <footer>
         <span>Read only · localhost telemetry · no Docker socket</span>
         <span>{{FOOTER_NOTE}}</span>

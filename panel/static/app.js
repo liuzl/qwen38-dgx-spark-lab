@@ -176,3 +176,67 @@ refreshSnapshot();
 refreshHistory();
 setInterval(refreshSnapshot, 2000);
 setInterval(refreshHistory, 60000);
+
+let auditKey = '';
+let auditCursor = null;
+let auditEpoch = 0;
+const number = value => value == null ? '—' : Number(value).toLocaleString(undefined, {maximumFractionDigits: 0});
+const seconds = value => value == null ? '—' : `${(value / 1000).toFixed(2)} s`;
+async function auditFetch(path, privileged = false) {
+  const response = await fetch(path, {cache: 'no-store', headers: privileged ? {Authorization: `Bearer ${auditKey}`} : {}});
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+  return payload;
+}
+async function refreshAudit() {
+  try {
+    const data = await auditFetch(`/api/audit/summary?hours=${$('audit-hours').value}`);
+    text('audit-status', `${number(data.requests)} 次请求 · 最后请求 ${data.last_request ? new Date(data.last_request*1000).toLocaleString() : '暂无'} · 最早保留记录 ${data.retained_since ? new Date(data.retained_since*1000).toLocaleString() : '暂无'}`);
+    const rate = data.input_tokens && data.cached_tokens != null ? `${(100*data.cached_tokens/data.input_tokens).toFixed(2)}%` : '—';
+    const cards = [ ['输入 token',number(data.input_tokens)], ['缓存命中 token',number(data.cached_tokens)], ['输出 token',number(data.output_tokens)], ['缓存命中占比',rate], ['首 token · P50 / P95',`${seconds(data.ttft_p50_ms)} / ${seconds(data.ttft_p95_ms)}`], ['总耗时 · P50 / P95',`${seconds(data.duration_p50_ms)} / ${seconds(data.duration_p95_ms)}`], ['平均解码速度', data.decode_tok_s == null ? '—' : `${data.decode_tok_s.toFixed(1)} tok/s`], ['平均排队耗时',seconds(data.queue_avg_ms)], ['Reasoning token',number(data.reasoning_tokens)], ['异常 / 未完成',number(data.errors)], ['缺少 usage / 正文截断',`${number(data.missing_usage)} / ${number(data.truncated)}`] ];
+    $('audit-cards').replaceChildren(...cards.map(([label,value]) => {
+      const card = document.createElement('div'); card.className='audit-stat';
+      const title = document.createElement('span'); title.textContent=label;
+      const strong = document.createElement('strong'); strong.textContent=value;
+      card.append(title,strong); return card;
+    }));
+  } catch(error) { text('audit-status', String(error)); $('audit-cards').replaceChildren(); }
+}
+async function requestDetail(id) {
+  const epoch = auditEpoch;
+  try {
+    const data = await auditFetch(`/api/audit/requests/${encodeURIComponent(id)}`,true);
+    if (epoch !== auditEpoch) return;
+    $('audit-detail').hidden=false;
+    text('audit-detail-note', `${data.id} · ${data.outcome}${data.truncated ? ' · 正文超过记录上限，已截断；usage 独立提取' : ''}`);
+    text('audit-usage', JSON.stringify({usage:data.usage_json,metrics:data.metrics_json},null,2));
+    text('audit-input',data.request_body); text('audit-output',data.response_body);
+  } catch(error) { if (epoch === auditEpoch) text('audit-private-status',String(error)); }
+}
+async function refreshRequests(append=false) {
+  const epoch = auditEpoch;
+  try {
+    const query = new URLSearchParams({hours:$('audit-hours').value, task:$('audit-task').value, model:$('audit-model').value});
+    if (append && auditCursor) query.set('before',auditCursor);
+    const data = await auditFetch(`/api/audit/requests?${query}`,true);
+    if (epoch !== auditEpoch) return;
+    $('audit-workspace').hidden=false;
+    if (!append) $('audit-rows').replaceChildren();
+    data.requests.forEach(row => {
+      const tr=document.createElement('tr');
+      const first=document.createElement('td'); const button=document.createElement('button');
+      button.type='button'; button.textContent=formatClock(row.started); button.addEventListener('click',()=>requestDetail(row.id));
+      const sub=document.createElement('small'); sub.textContent=`${row.endpoint} · ${row.id.slice(0,8)}`; first.append(button,sub); tr.append(first);
+      [ `${row.model}\n${row.task || '未关联任务'} · ${row.caller_id || '未知调用方'}`, `${row.status} ${row.outcome}${row.truncated ? ' · 截断' : ''}`, number(row.input_tokens), number(row.cached_tokens), number(row.output_tokens), seconds(row.ttft_ms), seconds(row.duration_ms) ].forEach(value=> {const td=document.createElement('td');td.textContent=value;tr.append(td);});
+      $('audit-rows').append(tr);
+    });
+    auditCursor=data.next_before; $('audit-more').hidden=!auditCursor;
+    text('audit-private-status',data.requests.length ? '已加载。点击时间查看输入输出。' : '此范围内暂无请求记录。');
+  } catch(error) { if (epoch === auditEpoch) text('audit-private-status',String(error)); }
+}
+$('audit-login').addEventListener('submit',event=> {event.preventDefault();auditEpoch++;auditKey=$('audit-key').value;$('audit-key').value='';refreshRequests();});
+$('audit-lock').addEventListener('click',()=> {auditEpoch++;auditKey='';$('audit-key').value='';$('audit-workspace').hidden=true;$('audit-rows').replaceChildren();['audit-input','audit-output','audit-usage','audit-detail-note','audit-private-status'].forEach(id=>text(id,''));$('audit-detail').hidden=true;});
+$('audit-filter').addEventListener('click',()=> {auditEpoch++;refreshRequests();});
+$('audit-more').addEventListener('click',()=>refreshRequests(true));
+$('audit-hours').addEventListener('change',()=> {refreshAudit();auditEpoch++;if(auditKey)refreshRequests();});
+refreshAudit(); setInterval(refreshAudit,10000);
