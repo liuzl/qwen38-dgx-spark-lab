@@ -1,0 +1,12 @@
+# vLLM v0.28.0 release (multi-arch manifest list: arm64 for DGX Spark, amd64
+# for x86 GPU hosts) plus the one DFlash2 fix that is still missing upstream.
+ARG BASE=vllm/vllm-openai@sha256:61fc8a896b0a4fbbbdc063bc4b0dbc25ce98e02b5050c24aeb7830ac02039b14
+FROM ${BASE}
+
+ARG SITE=/usr/local/lib/python3.12/dist-packages/vllm
+COPY patch_vllm_dflash_v028.py /opt/qwen38/patch_vllm_dflash_v028.py
+RUN python3 /opt/qwen38/patch_vllm_dflash_v028.py --site "${SITE}" \
+    && python3 -m py_compile "${SITE}/config/speculative.py"
+
+LABEL org.opencontainers.image.title="qwen38-vllm-dflash2-v028" \
+      org.opencontainers.image.description="vLLM v0.28.0 + DFlash2 compile-cache key fix (#53292)"

@@ -22,6 +22,17 @@ max_num_seqs="${MAX_NUM_SEQS:-10}"
 max_num_batched_tokens="${MAX_NUM_BATCHED_TOKENS:-16384}"
 base_model_name="${BASE_MODEL_NAME:-qwen3.8-27b}"
 adapter_model_name="${ADAPTER_MODEL_NAME:-qwen3.8-27b-uncensored}"
+retention_interval="${PREFIX_CACHE_RETENTION_INTERVAL:-1648}"
+# vLLM v0.28.0 reads the retention interval only from the environment; the
+# --prefix-cache-retention-interval flag exists in the pinned nightly and v0.29+.
+retention_mode="${PREFIX_CACHE_RETENTION_MODE:-cli}"
+retention_env=()
+retention_arg=()
+case "$retention_mode" in
+  cli) retention_arg=(--prefix-cache-retention-interval "$retention_interval") ;;
+  env) retention_env=(-e "VLLM_PREFIX_CACHE_RETENTION_INTERVAL=$retention_interval") ;;
+  *) echo "PREFIX_CACHE_RETENTION_MODE must be cli or env" >&2; exit 1 ;;
+esac
 
 mkdir -p "$CACHE_DIR/flashinfer" "$CACHE_DIR/prob-k7-native-lora"
 
@@ -39,6 +50,7 @@ docker run -d \
   --health-start-period 8m \
   -e VLLM_CACHE_ROOT=/vllm-cache/prob-k7-native-lora \
   -e VLLM_MARLIN_USE_ATOMIC_ADD=1 \
+  "${retention_env[@]}" \
   -v "$MODEL_DIR:/model:ro" \
   -v "$DRAFT_DIR:/draft:ro" \
   -v "$ADAPTER_DIR:/adapter:ro" \
@@ -55,7 +67,7 @@ docker run -d \
   --max-num-seqs "$max_num_seqs" \
   --max-num-batched-tokens "$max_num_batched_tokens" \
   --enable-prefix-caching \
-  --prefix-cache-retention-interval 1648 \
+  "${retention_arg[@]}" \
   --enable-chunked-prefill \
   --kv-cache-dtype fp8_e4m3 \
   --no-enable-flashinfer-autotune \
