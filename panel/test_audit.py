@@ -84,24 +84,33 @@ class AuditTests(unittest.TestCase):
             rows = reader.requests(24, exclude_tests=True)['requests']
             self.assertEqual({row['id'] for row in rows}, {'normal', 'generic'})
 
-    def test_private_endpoint_auth(self):
+    def test_audit_endpoints_without_extra_key(self):
         import threading
+        import sqlite3
         import urllib.request
         import urllib.error
         from http.server import ThreadingHTTPServer
         from panel import server
         with tempfile.TemporaryDirectory() as folder, patch.dict('os.environ',{'AUDIT_DB':folder+'/audit.db'}):
             store=audit.Store(folder+'/audit.db')
-            with patch.object(server,'AUDIT_READER',AuditReader(folder+'/audit.db')), patch.object(server,'AUDIT_TOKEN','test-key'):
+            with patch.object(server,'AUDIT_READER',AuditReader(folder+'/audit.db')):
                 http=ThreadingHTTPServer(('127.0.0.1',0),server.Handler)
                 threading.Thread(target=http.serve_forever,daemon=True).start()
                 url=f'http://127.0.0.1:{http.server_port}/api/audit/'
                 try:
                     with urllib.request.urlopen(url+'summary') as r: self.assertEqual(r.status,200)
-                    with self.assertRaises(urllib.error.HTTPError) as error: urllib.request.urlopen(url+'requests')
-                    self.assertEqual(error.exception.code,401)
-                    req=urllib.request.Request(url+'requests',headers={'Authorization':'Bearer test-key'})
-                    with urllib.request.urlopen(req) as r: self.assertEqual(json.load(r)['requests'],[])
+                    with urllib.request.urlopen(url+'requests') as r:
+                        self.assertEqual(json.load(r)['requests'], [])
+                    with sqlite3.connect(folder+'/audit.db') as db:
+                        db.execute('INSERT INTO requests (id, started, outcome, request_body, response_body, metrics_json, usage_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                            ('fixture', time.time(), 'ok', '{"prompt":"hello"}', '{"text":"world"}', '{}', '{}'))
+                    with urllib.request.urlopen(url+'requests/fixture') as r:
+                        detail = json.load(r)
+                        self.assertEqual(detail['request_body'], '{"prompt":"hello"}')
+                        self.assertEqual(detail['response_body'], '{"text":"world"}')
+                    with self.assertRaises(urllib.error.HTTPError) as error:
+                        urllib.request.urlopen(url+'requests/missing')
+                    self.assertEqual(error.exception.code, 404)
                 finally:
                     http.shutdown();http.server_close()
 

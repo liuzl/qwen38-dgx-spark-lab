@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import json
-import hmac
 import math
 import mimetypes
 import os
@@ -29,7 +28,6 @@ except ImportError:
     from audit_reader import AuditReader
 
 AUDIT_DB = os.environ.get("PANEL_AUDIT_DB", "")
-AUDIT_TOKEN = os.environ.get("PANEL_AUDIT_TOKEN", "")
 AUDIT_READER = AuditReader(AUDIT_DB) if AUDIT_DB else None
 
 ROOT = Path(__file__).resolve().parent
@@ -641,12 +639,7 @@ class Handler(BaseHTTPRequestHandler):
             if AUDIT_READER is None:
                 self._json({"enabled": False, "error": "Request capture is not configured"}, 503)
                 return
-            private = parsed.path != "/api/audit/summary"
-            if private and (not AUDIT_TOKEN or not hmac.compare_digest(
-                self.headers.get("Authorization", ""), "Bearer " + AUDIT_TOKEN
-            )):
-                self._json({"error": "Operator key required"}, 401)
-                return
+            # All panel routes are protected by upstream Cloudflare Access.
             query = urllib.parse.parse_qs(parsed.query)
             try:
                 hours = min(168, max(1, int(query.get("hours", ["1"])[0])))

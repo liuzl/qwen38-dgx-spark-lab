@@ -106,17 +106,18 @@ keep `--enable-prompt-tokens-details` enabled. No image build is needed. These
 flags require a container replacement / model reload. Streaming clients will
 receive an additional final usage chunk if they did not already request one.
 
-Set `PANEL_AUDIT_DB` to the read-only database path and `PANEL_AUDIT_TOKEN` to a
-random operator secret via a private environment file. Grant the panel process
+Set `PANEL_AUDIT_DB` to the read-only database path via an environment file. Grant the panel process
 read access through a dedicated supplementary group. Do not grant write access
-to the audit directory. Keep the existing private access controls on the panel.
+to the audit directory. Bind the panel to loopback and protect the entire hostname, including all API
+routes, with Cloudflare Access. All Access-authorized users can read request
+bodies. There is no separate application administrator key.
 
 - `/api/audit/summary?hours=1`: aggregate counts, tokens, exact nearest-rank
   P50/P95 latency from retained completed records (including failed requests).
-- `/api/audit/requests`: paginated metadata; operator Bearer key required.
+- `/api/audit/requests`: paginated metadata.
   Supports `hours` (1–168), exact `task` / `model` filters and `before` cursor.
 - `/api/audit/requests/<id>`: bodies, usage, upstream ID and timing metrics;
-  operator key required. Browser keeps the key in memory only; locking clears it.
+  available after Cloudflare Access login.
 - vLLM `/audit-health`: internal capture queue size, written/dropped records and
   last persistence error. Never add this endpoint to the public API allowlist.
 
@@ -141,7 +142,7 @@ Validation: `python3 -m unittest panel.test_server panel.test_audit`.
 ### Reading recent requests
 
 The page opens on **请求记录** (`/#requests`); **服务概览** (`/#overview`) holds
-aggregate telemetry. Unlock with the existing operator key, then use **查看对话**
+aggregate telemetry. After Cloudflare Access login, use **查看对话**
 to read the latest user message and assembled response. Earlier context, system
 instructions, reasoning and tool calls are collapsed. The detail dialog supports
 next/previous requests, copying the answer, labeled token/timing fields and raw
@@ -153,6 +154,6 @@ The default 24-hour window hides deployment smoke requests matching
 `audit-*-smoke-*` / `audit-smoke-*`; uncheck the filter to include them.
 Both summary and list APIs accept `exclude_tests=1`. The service banner uses the
 latest retained matching request independently of the selected summary window.
-Operator keys remain in memory only and locking clears all displayed content.
+No additional unlock step is required.
 
 Formatter regression checks: `node --test panel/test_conversation.cjs`.

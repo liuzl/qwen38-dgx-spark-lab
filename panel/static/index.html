@@ -47,8 +47,7 @@
         </div>
       </section>
       <nav class="tabs" aria-label="页面导航">
-        <button id="tab-requests" type="button">
-          请求记录 <span id="lock-indicator">需解锁</span></button
+        <button id="tab-requests" type="button">请求记录</button
         ><button id="tab-overview" aria-current="page" type="button">
           服务概览
         </button>
@@ -190,37 +189,8 @@
         </details>
       </section>
       <section id="requests-view" hidden aria-label="请求记录">
-        <section id="audit-login-card" class="panel login-card">
-          <div class="login-copy">
-            <span class="eyebrow">私密请求记录</span>
-            <h2>解锁后查看每次输入与回答</h2>
-            <p>请求内容可能包含私密信息，因此需要独立的管理员查看密钥。</p>
-          </div>
-          <form id="audit-login">
-            <label for="audit-key">管理员查看密钥</label>
-            <div class="login-fields">
-              <input
-                id="audit-key"
-                type="password"
-                autocomplete="off"
-                required
-                placeholder="粘贴查看密钥"
-              /><button class="primary" type="submit">解锁请求记录</button>
-            </div>
-            <p class="muted">
-              密钥仅保存在此页面内存中，刷新或关闭页面后需重新解锁。
-            </p>
-            <details>
-              <summary>如何获取密钥？</summary>
-              <p>
-                向服务管理员获取。已拥有服务器管理权限时，可读取服务器上的
-                <code>/etc/llm-panel-operator.key</code>。
-              </p>
-            </details>
-          </form>
-        </section>
         <p id="audit-private-status" class="notice" role="status"></p>
-        <section id="audit-workspace" hidden>
+        <section id="audit-workspace">
           <form id="audit-filter-form" class="filterbar">
             <label
               >模型<select id="audit-model">
@@ -234,7 +204,7 @@
             ><button type="button" id="audit-reset">重置</button
             ><label class="check"
               ><input id="audit-auto" type="checkbox" checked />自动更新</label
-            ><button id="audit-lock" type="button">锁定</button>
+            >
           </form>
           <div class="panel request-panel">
             <div class="panel-head">

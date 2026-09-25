@@ -1,4 +1,4 @@
-"""Read-only access to the audit database; bodies require separate authorization."""
+"""Read-only access to the audit database; authorization is provided by upstream Cloudflare Access."""
 import json
 from contextlib import contextmanager
 import math

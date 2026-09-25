@@ -43,7 +43,6 @@ function node(tag, content, className) {
 let snapshot = null,
   summary = null,
   history = [],
-  auditKey = "",
   cursor = null,
   page = "overview";
 let epoch = 0,
@@ -70,19 +69,30 @@ function query() {
     exclude_tests: $("exclude-tests").checked ? "1" : "0",
   });
 }
-async function fetchJson(path, privateData = false) {
+async function fetchJson(path) {
   const response = await fetch(path, {
     cache: "no-store",
-    headers: privateData ? { Authorization: `Bearer ${auditKey}` } : {},
   });
+  if (
+    response.redirected ||
+    response.status === 401 ||
+    response.status === 403
+  ) {
+    const error = new Error(
+      "登录状态已过期，请刷新页面重新通过 Cloudflare Access 登录。",
+    );
+    error.status = 401;
+    throw error;
+  }
+  if (!response.headers.get("content-type")?.includes("application/json")) {
+    throw new Error("未收到有效数据，请刷新页面检查登录状态。");
+  }
   const data = await response.json();
   if (!response.ok) {
     const error = new Error(
-      response.status === 401
-        ? "查看密钥不正确或已失效，请重新解锁。"
-        : response.status === 503
-          ? "请求记录暂时不可用，请稍后重试。"
-          : `加载失败（${response.status}），请重试。`,
+      response.status === 503
+        ? "请求记录暂时不可用，请稍后重试。"
+        : `加载失败（${response.status}），请重试。`,
     );
     error.status = response.status;
     throw error;
@@ -100,7 +110,7 @@ function showPage(next) {
   }
   location.hash = page;
   if (page === "overview") drawChart();
-  else if (auditKey) loadRequests();
+  else loadRequests();
 }
 function activity() {
   if (!snapshot) return;
@@ -361,25 +371,21 @@ function clearDetails() {
   ])
     text(id, "");
 }
-function lock() {
+function clearRequestData() {
   epoch++;
-  auditKey = "";
+  lastListSignature = "";
+  $("audit-filter").disabled = false;
   requestsLoading = false;
-  $("audit-key").value = "";
-  $("audit-login-card").hidden = false;
-  $("audit-workspace").hidden = true;
-  text("lock-indicator", "需解锁");
   $("audit-rows").replaceChildren();
   loadedRequests = [];
   clearDetails();
-  text("audit-private-status", "已锁定，请求内容已从页面清除。");
 }
 function setPrivateStatus(message, isError = false) {
   text("audit-private-status", message);
   $("audit-private-status").className = `notice${isError ? " error" : ""}`;
 }
 async function loadRequests(append = false, automatic = false) {
-  if (!auditKey || requestsLoading) return;
+  if (requestsLoading) return;
   const ticket = epoch;
   requestsLoading = true;
   const params = query();
@@ -389,11 +395,9 @@ async function loadRequests(append = false, automatic = false) {
   if (!automatic) setPrivateStatus("正在加载请求…");
   $("audit-filter").disabled = true;
   try {
-    const data = await fetchJson(`/api/audit/requests?${params}`, true);
+    const data = await fetchJson(`/api/audit/requests?${params}`);
     if (ticket !== epoch) return;
-    $("audit-login-card").hidden = true;
     $("audit-workspace").hidden = false;
-    text("lock-indicator", "已解锁");
     const signature = JSON.stringify(data.requests);
     if (automatic && signature === lastListSignature) return;
     if (!append) lastListSignature = signature;
@@ -458,7 +462,7 @@ async function loadRequests(append = false, automatic = false) {
     );
   } catch (error) {
     if (ticket !== epoch) return;
-    if (error.status === 401) lock();
+    if (error.status === 401) clearRequestData();
     setPrivateStatus(error.message, true);
   } finally {
     if (ticket === epoch) {
@@ -679,7 +683,6 @@ async function requestDetail(id) {
   try {
     const data = await fetchJson(
       `/api/audit/requests/${encodeURIComponent(id)}`,
-      true,
     );
     if (ticket !== detailEpoch) return;
     text(
@@ -752,7 +755,7 @@ async function requestDetail(id) {
   } catch (error) {
     if (ticket !== detailEpoch) return;
     if (error.status === 401) {
-      lock();
+      clearRequestData();
       setPrivateStatus(error.message, true);
     } else {
       text("detail-title", "请求加载失败");
@@ -769,7 +772,7 @@ function reloadFilters() {
   cursor = null;
   refreshSummary();
   refreshHistory();
-  if (auditKey) loadRequests();
+  if (page === "requests") loadRequests();
 }
 $("tab-overview").addEventListener("click", () => showPage("overview"));
 $("tab-requests").addEventListener("click", () => showPage("requests"));
@@ -780,16 +783,6 @@ $("refresh-all").addEventListener("click", () => {
   refreshSnapshot();
   reloadFilters();
 });
-$("audit-login").addEventListener("submit", (event) => {
-  event.preventDefault();
-  auditKey = $("audit-key").value.trim();
-  $("audit-key").value = "";
-  epoch++;
-  requestsLoading = false;
-  clearDetails();
-  loadRequests();
-});
-$("audit-lock").addEventListener("click", lock);
 $("audit-filter-form").addEventListener("submit", (event) => {
   event.preventDefault();
   epoch++;
@@ -854,7 +847,6 @@ setInterval(() => {
   if (!summaryLoading) refreshSummary();
   if (
     page === "requests" &&
-    auditKey &&
     $("audit-auto").checked &&
     !loadedOlder &&
     !$("audit-detail").open &&
