@@ -137,3 +137,22 @@ A full 32-record queue or a write failure drops telemetry, not inference;
 `/audit-health` reports these drops. Existing historical requests cannot be recovered.
 
 Validation: `python3 -m unittest panel.test_server panel.test_audit`.
+
+### Reading recent requests
+
+The page opens on **请求记录** (`/#requests`); **服务概览** (`/#overview`) holds
+aggregate telemetry. Unlock with the existing operator key, then use **查看对话**
+to read the latest user message and assembled response. Earlier context, system
+instructions, reasoning and tool calls are collapsed. The detail dialog supports
+next/previous requests, copying the answer, labeled token/timing fields and raw
+JSON/SSE as a fallback. Truncation remains explicit; remote images are not loaded.
+
+Records refresh every 10 seconds while browsing the latest list. Refresh pauses
+while inspecting details, interacting with the list or browsing older pages.
+The default 24-hour window hides deployment smoke requests matching
+`audit-*-smoke-*` / `audit-smoke-*`; uncheck the filter to include them.
+Both summary and list APIs accept `exclude_tests=1`. The service banner uses the
+latest retained matching request independently of the selected summary window.
+Operator keys remain in memory only and locking clears all displayed content.
+
+Formatter regression checks: `node --test panel/test_conversation.cjs`.

@@ -65,6 +65,25 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(row['outcome'],'error')
             self.assertIsNone(row['input_tokens'])
 
+    def test_exclude_smoke_and_latest_outside_window(self):
+        import sqlite3
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'audit.db'
+            now = time.time()
+            with sqlite3.connect(path) as db:
+                db.executescript(audit.SCHEMA)
+                for identifier, started, task in [('normal', now-7200, None),
+                        ('smoke', now, 'audit-cache-smoke-20260925'),
+                        ('generic', now-7100, 'audit-production-review')]:
+                    db.execute('INSERT INTO requests (id, started, task, outcome, duration_ms, metrics_json) VALUES (?, ?, ?, ?, ?, ?)',
+                        (identifier, started, task, 'ok', 200, '{}'))
+            reader = AuditReader(path)
+            self.assertEqual(reader.summary(1)['requests'], 1)
+            self.assertEqual(reader.summary(1, True)['requests'], 0)
+            self.assertEqual(reader.summary(1, True)['latest_request'], now-7100)
+            rows = reader.requests(24, exclude_tests=True)['requests']
+            self.assertEqual({row['id'] for row in rows}, {'normal', 'generic'})
+
     def test_private_endpoint_auth(self):
         import threading
         import urllib.request

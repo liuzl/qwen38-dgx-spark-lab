@@ -651,13 +651,14 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 hours = min(168, max(1, int(query.get("hours", ["1"])[0])))
                 if parsed.path == "/api/audit/summary":
-                    result = AUDIT_READER.summary(hours)
+                    result = AUDIT_READER.summary(hours, query.get("exclude_tests", ["0"])[0] == "1")
                 elif parsed.path == "/api/audit/requests":
                     before = float(query["before"][0]) if "before" in query else None
                     if before is not None and not math.isfinite(before):
                         raise ValueError("Invalid cursor")
                     result = AUDIT_READER.requests(hours, before,
-                        query.get("task", [""])[0], query.get("model", [""])[0])
+                        query.get("task", [""])[0], query.get("model", [""])[0],
+                        query.get("exclude_tests", ["0"])[0] == "1")
                 elif parsed.path.startswith("/api/audit/requests/"):
                     result = AUDIT_READER.detail(parsed.path.rsplit("/", 1)[1])
                     if result is None:

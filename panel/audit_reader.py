@@ -6,6 +6,9 @@ import sqlite3
 import time
 from pathlib import Path
 
+# Only deployment smoke-test naming conventions; ordinary tasks remain visible.
+NON_TEST = "(task IS NULL OR (task NOT LIKE 'audit-%-smoke-%' AND task NOT LIKE 'audit-smoke-%'))"
+
 class AuditReader:
     def __init__(self, path):
         self.path = Path(path)
@@ -20,10 +23,11 @@ class AuditReader:
         finally:
             db.close()
 
-    def summary(self, hours):
+    def summary(self, hours, exclude_tests=False):
         cutoff = time.time()-hours*3600
+        condition = "started >= ?" + (" AND " + NON_TEST if exclude_tests else "")
         with self.connect() as db:
-            row = dict(db.execute('''SELECT COUNT(*) AS requests,
+            row = dict(db.execute(f'''SELECT COUNT(*) AS requests,
                 SUM(CASE WHEN outcome != 'ok' THEN 1 ELSE 0 END) AS errors,
                 SUM(input_tokens) AS input_tokens, SUM(cached_tokens) AS cached_tokens,
                 SUM(output_tokens) AS output_tokens, SUM(reasoning_tokens) AS reasoning_tokens,
@@ -32,20 +36,23 @@ class AuditReader:
                 AVG(ttft_ms) AS ttft_avg_ms,
                 AVG(json_extract(metrics_json, '$.tokens_per_second')) AS decode_tok_s,
                 AVG(json_extract(metrics_json, '$.queue_time_ms')) AS queue_avg_ms, MIN(started) AS first_request,
-                MAX(started) AS last_request FROM requests WHERE started >= ?''', (cutoff,)).fetchone())
+                MAX(started) AS last_request FROM requests WHERE {condition}''', (cutoff,)).fetchone())
             for column, prefix in [('duration_ms','duration'),('ttft_ms','ttft')]:
-                count = db.execute(f'SELECT COUNT({column}) FROM requests WHERE started>=?', (cutoff,)).fetchone()[0]
+                count = db.execute(f'SELECT COUNT({column}) FROM requests WHERE {condition}', (cutoff,)).fetchone()[0]
                 for q, name in [(0.5,'p50'),(0.95,'p95')]:
-                    value = db.execute(f'SELECT {column} FROM requests WHERE started>=? AND {column} IS NOT NULL ORDER BY {column} LIMIT 1 OFFSET ?', (cutoff,max(0,math.ceil(count*q)-1))).fetchone()
+                    value = db.execute(f'SELECT {column} FROM requests WHERE {condition} AND {column} IS NOT NULL ORDER BY {column} LIMIT 1 OFFSET ?', (cutoff,max(0,math.ceil(count*q)-1))).fetchone()
                     row[f'{prefix}_{name}_ms'] = value[0] if value else None
+            row['latest_request'] = db.execute('SELECT MAX(started) FROM requests WHERE ' + (NON_TEST if exclude_tests else '1=1')).fetchone()[0]
             row['retained_since'] = db.execute('SELECT MIN(started) FROM requests').fetchone()[0]
         row['hours'] = hours
         row['enabled'] = True
         return row
 
-    def requests(self, hours, before=None, task='', model=''):
+    def requests(self, hours, before=None, task='', model='', exclude_tests=False):
         where = ['started >= ?']
         args = [time.time()-hours*3600]
+        if exclude_tests:
+            where.append(NON_TEST)
         if before is not None:
             where.append('started < ?'); args.append(before)
         if task:

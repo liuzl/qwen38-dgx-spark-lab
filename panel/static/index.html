@@ -1,158 +1,327 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="dark">
-    <meta name="description" content="{{PANEL_DESCRIPTION}}">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="{{PANEL_DESCRIPTION}}" />
     <title>{{PAGE_TITLE}}</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
         <div class="brand">
-          <div class="mark" aria-hidden="true">{{PANEL_MARK}}</div>
+          <span class="mark">{{PANEL_MARK}}</span>
           <div>
-            <p class="eyebrow">{{PANEL_EYEBROW}}</p>
             <h1>{{PANEL_HEADING}}</h1>
+            <p>模型服务与请求记录</p>
           </div>
         </div>
         <div class="topbar-actions">
-          <a id="beszel-link" class="quiet-link" href="#" target="_blank" rel="noreferrer" hidden>Hardware in Beszel ↗</a>
-          <div id="health-chip" class="health-chip waiting">
-            <span class="health-dot"></span>
-            <span id="health-label">Connecting</span>
-          </div>
+          <span id="last-update" class="muted">正在连接…</span
+          ><button id="refresh-all" type="button">刷新</button
+          ><a id="beszel-link" href="#" hidden>硬件监控 ↗</a>
         </div>
       </header>
-
-      <section class="hero" aria-labelledby="hero-title">
-        <div class="hero-copy">
-          <p id="hero-title" class="section-label">LIVE DECODE</p>
-          <div class="hero-number"><span id="generation-rate">—</span><small>tok/s</small></div>
-          <p class="model-line"><span id="model-name">Waiting for vLLM</span><span class="separator">/</span><span id="last-update">—</span></p>
-        </div>
-        <div class="hero-chart">
-          <div class="chart-head">
-            <div>
-              <span class="chart-title">Generation throughput</span>
-              <span class="chart-subtitle">minute rollups</span>
-            </div>
-            <div class="range-switch" aria-label="History range">
-              <button type="button" data-hours="1">1H</button>
-              <button type="button" data-hours="24" class="active">24H</button>
-              <button type="button" data-hours="336">14D</button>
-            </div>
+      <section class="status-banner">
+        <div>
+          <div id="health-chip" class="health-chip waiting">
+            <span class="health-dot"></span
+            ><span id="health-label">正在连接</span>
           </div>
-          <canvas id="throughput-chart" aria-label="Generation throughput history"></canvas>
-          <div id="chart-empty" class="chart-empty">History begins with this deployment.</div>
+          <h2 id="activity-title">正在读取服务状态…</h2>
+          <p id="activity-description">请稍候</p>
+          <p id="model-name" class="muted"></p>
+        </div>
+        <div class="live-stats">
+          <div>
+            <strong id="running-requests">—</strong><span>正在处理</span>
+          </div>
+          <div>
+            <strong id="waiting-requests">—</strong><span>排队等待</span>
+          </div>
+          <div>
+            <strong id="generation-rate">—</strong><span>实时输出 token/s</span>
+          </div>
         </div>
       </section>
-
-      <section class="metrics-grid" aria-label="Serving metrics">
-        <article class="metric-card accent-card">
-          <div class="metric-heading"><span>Prompt throughput</span><span class="metric-code">PREFILL</span></div>
-          <div class="metric-value"><span id="prompt-rate">—</span><small>tok/s</small></div>
-          <p>Uncached and cached prompt tokens reported by vLLM.</p>
-        </article>
-
-        <article class="metric-card">
-          <div class="metric-heading"><span>Requests</span><span class="metric-code">QUEUE</span></div>
-          <div class="split-value">
-            <div><strong id="running-requests">—</strong><span>running</span></div>
-            <div><strong id="waiting-requests">—</strong><span>waiting</span></div>
-          </div>
-          <p>Scheduler pressure at the current instant.</p>
-        </article>
-
-        <article class="metric-card">
-          <div class="metric-heading"><span>KV cache</span><span class="metric-code">{{KV_CACHE_CODE}}</span></div>
-          <div class="metric-value"><span id="kv-percent">—</span><small>%</small></div>
-          <div class="meter"><span id="kv-meter"></span></div>
-          <p>{{KV_CACHE_NOTE}}</p>
-        </article>
-
-        <article class="metric-card">
-          <div class="metric-heading"><span>Prefix cache</span><span class="metric-code">HIT RATE</span></div>
-          <div class="metric-value"><span id="prefix-rate">—</span><small>%</small></div>
-          <div class="meter"><span id="prefix-meter"></span></div>
-          <p>Windowed rate; shown as idle when no new queries arrive.</p>
-        </article>
-      </section>
-
-      <section class="lower-grid">
-        <article class="panel spec-panel">
-          <div class="panel-head">
-            <div>
-              <p class="section-label">{{SPECULATIVE_LABEL}}</p>
-              <h2>Draft acceptance</h2>
+      <nav class="tabs" aria-label="页面导航">
+        <button id="tab-requests" type="button">
+          请求记录 <span id="lock-indicator">需解锁</span></button
+        ><button id="tab-overview" aria-current="page" type="button">
+          服务概览
+        </button>
+      </nav>
+      <div class="toolbar">
+        <label
+          >统计范围
+          <select id="audit-hours">
+            <option value="1">最近 1 小时</option>
+            <option value="24" selected>最近 24 小时</option>
+            <option value="168">最近 7 天</option>
+          </select></label
+        >
+        <label class="check"
+          ><input
+            type="checkbox"
+            id="exclude-tests"
+            checked
+          />隐藏部署验证请求</label
+        >
+        <span id="refresh-note" class="muted">统计每 10 秒更新</span>
+      </div>
+      <section id="overview-view" aria-label="服务概览">
+        <p id="audit-status" class="notice" role="status">正在加载请求统计…</p>
+        <div id="audit-cards" class="summary-grid"></div>
+        <div class="overview-lower">
+          <section class="panel chart-panel">
+            <div class="panel-head">
+              <div>
+                <h2>输出速度趋势</h2>
+                <p>每分钟峰值，包含空闲时间</p>
+              </div>
+              <span class="unit">token/s</span>
             </div>
-            <div class="acceptance-summary">
-              <span><strong id="accept-length">—</strong> length</span>
-              <span><strong id="accept-rate">—</strong>% accepted</span>
+            <div class="chart-wrap">
+              <canvas id="throughput-chart" aria-label="输出速度历史"></canvas>
+              <p id="chart-empty">暂无足够的历史数据</p>
             </div>
-          </div>
-          <div id="position-bars" class="position-bars" aria-label="Per-position acceptance">
-            <div class="empty-copy">Acceptance appears while requests are decoding.</div>
-          </div>
-          <div class="rate-row">
-            <span>Accepted <strong id="accepted-rate">—</strong> tok/s</span>
-            <span>Drafted <strong id="drafted-rate">—</strong> tok/s</span>
-          </div>
-        </article>
-
-        <article class="panel latency-panel">
-          <div class="panel-head">
-            <div>
-              <p class="section-label">LIFETIME DISTRIBUTION</p>
-              <h2>Latency p95</h2>
+            <div class="chart-labels">
+              <span id="chart-start">—</span><span id="chart-end">—</span>
             </div>
-          </div>
-          <div class="latency-list">
-            <div><span>Time to first token</span><strong><span id="ttft">—</span> ms</strong></div>
-            <div><span>Time per output token</span><strong><span id="tpot">—</span> ms</strong></div>
-            <div><span>End-to-end request</span><strong><span id="e2e">—</span> ms</strong></div>
-          </div>
-          <div class="preemption-row"><span>Preemptions since boot</span><strong id="preemptions">—</strong></div>
-        </article>
-      </section>
-
-      <section class="panel audit-panel" aria-labelledby="audit-title">
-        <div class="panel-head">
-          <div><p class="section-label">REQUEST OBSERVABILITY</p><h2 id="audit-title">近期请求 · Token 与延迟</h2></div>
-          <select id="audit-hours" aria-label="请求统计时间范围"><option value="1">最近 1 小时</option><option value="24">最近 24 小时</option><option value="168">最近 7 天</option></select>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>响应体验</h2>
+                <p>所选范围内已结束的请求</p>
+              </div>
+            </div>
+            <dl class="stat-list">
+              <div>
+                <dt>开始输出需要多久 <small>首 token · 中位数</small></dt>
+                <dd id="recent-ttft">—</dd>
+              </div>
+              <div>
+                <dt>完成一条请求 <small>总耗时 · 中位数</small></dt>
+                <dd id="recent-duration">—</dd>
+              </div>
+              <div>
+                <dt>较慢的请求 <small>95% 请求在此时间内完成</small></dt>
+                <dd id="recent-p95">—</dd>
+              </div>
+              <div>
+                <dt>异常 / 未完成</dt>
+                <dd id="recent-errors">—</dd>
+              </div>
+            </dl>
+            <button id="go-requests" class="text-button" type="button">
+              查看请求记录 →
+            </button>
+          </section>
         </div>
-        <p id="audit-status" class="audit-note" role="status">正在连接请求记录…</p>
-        <div id="audit-cards" class="audit-grid"></div>
-        <p class="audit-note">统计来自已结束请求；未知值显示 —。首 token 优先使用服务端耗时，缺失时取流式首个内容事件（包含 reasoning / tool call）。历史请求无法补录。</p>
-        <details id="audit-private">
-          <summary>管理员 · 请求明细与输入输出</summary>
-          <p class="audit-note">独立管理员密钥；仅保存在当前页面内存中。请求记录默认保留 7 天，正文截断会明确标注。</p>
-          <form id="audit-login" class="audit-controls">
-            <input id="audit-key" type="password" autocomplete="off" placeholder="管理员查看密钥" aria-label="管理员查看密钥" required>
-            <button type="submit">解锁明细</button><button type="button" id="audit-lock">锁定</button>
-          </form>
-          <div id="audit-workspace" hidden>
-            <div class="audit-controls">
-              <input id="audit-task" placeholder="按 X-Task-ID 精确筛选" aria-label="任务 ID">
-              <input id="audit-model" placeholder="按模型名精确筛选" aria-label="模型名">
-              <button id="audit-filter" type="button">筛选 / 刷新</button>
-            </div>
-            <p class="audit-note">任务来源为调用方提供的 X-Task-ID 或网关聊天 ID；调用方为网关验证的用户 ID，直连请求未提供时显示未知。明细列表手动刷新，避免打断阅读。</p>
-            <div class="audit-table-wrap"><table class="audit-table"><thead><tr><th>时间 / 请求</th><th>模型 / 任务 / 调用方</th><th>状态</th><th>输入</th><th>缓存</th><th>输出</th><th>首 token</th><th>总耗时</th></tr></thead><tbody id="audit-rows"></tbody></table></div>
-            <button id="audit-more" type="button" hidden>加载更早请求</button>
-            <article id="audit-detail" hidden><h3>请求详情</h3><p id="audit-detail-note"></p><h4>Usage / 服务端耗时</h4><pre id="audit-usage"></pre><h4>输入（原始 JSON）</h4><pre id="audit-input"></pre><h4>输出（JSON / SSE）</h4><pre id="audit-output"></pre></article>
+        <details id="advanced" class="panel advanced">
+          <summary>
+            更多运行指标 <span>缓存占用、推测解码、进程累计延迟</span>
+          </summary>
+          <div class="advanced-grid">
+            <section>
+              <h3>缓存与吞吐</h3>
+              <dl class="stat-list">
+                <div>
+                  <dt>输入吞吐（含缓存）</dt>
+                  <dd><span id="prompt-rate">—</span> token/s</dd>
+                </div>
+                <div>
+                  <dt>KV 缓存占用</dt>
+                  <dd><span id="kv-percent">—</span>%</dd>
+                </div>
+                <div>
+                  <dt>当前窗口缓存命中率</dt>
+                  <dd id="prefix-rate">—</dd>
+                </div>
+                <div>
+                  <dt>进程累计抢占次数</dt>
+                  <dd id="preemptions">—</dd>
+                </div>
+              </dl>
+            </section>
+            <section>
+              <h3>推测解码</h3>
+              <p class="muted">
+                接受率 <b id="accept-rate">—</b> · 平均接受长度
+                <b id="accept-length">—</b>
+              </p>
+              <div id="position-bars" class="position-bars"></div>
+              <p class="muted">
+                接受 <span id="accepted-rate">—</span> / 草稿
+                <span id="drafted-rate">—</span> token/s
+              </p>
+            </section>
+            <section>
+              <h3>本次进程累计 P95</h3>
+              <dl class="stat-list">
+                <div>
+                  <dt>首 token</dt>
+                  <dd><span id="ttft">—</span> ms</dd>
+                </div>
+                <div>
+                  <dt>每个输出 token</dt>
+                  <dd><span id="tpot">—</span> ms</dd>
+                </div>
+                <div>
+                  <dt>完整请求</dt>
+                  <dd><span id="e2e">—</span> ms</dd>
+                </div>
+              </dl>
+              <p class="muted">重启后重新累计；与上方时间范围无关。</p>
+            </section>
           </div>
-          <p id="audit-private-status" class="audit-note" role="status"></p>
+        </details>
+        <details class="help">
+          <summary>这些数字如何统计？</summary>
+          <p>
+            输入 token 已包含缓存命中部分，不能再次相加。延迟来自已结束请求，P95
+            表示 95% 的请求不超过该耗时。没有数据时显示 —，不代表
+            0。正文从启用采集时开始记录，默认保留 7 天。
+          </p>
+          <p id="audit-quality"></p>
         </details>
       </section>
-
+      <section id="requests-view" hidden aria-label="请求记录">
+        <section id="audit-login-card" class="panel login-card">
+          <div class="login-copy">
+            <span class="eyebrow">私密请求记录</span>
+            <h2>解锁后查看每次输入与回答</h2>
+            <p>请求内容可能包含私密信息，因此需要独立的管理员查看密钥。</p>
+          </div>
+          <form id="audit-login">
+            <label for="audit-key">管理员查看密钥</label>
+            <div class="login-fields">
+              <input
+                id="audit-key"
+                type="password"
+                autocomplete="off"
+                required
+                placeholder="粘贴查看密钥"
+              /><button class="primary" type="submit">解锁请求记录</button>
+            </div>
+            <p class="muted">
+              密钥仅保存在此页面内存中，刷新或关闭页面后需重新解锁。
+            </p>
+            <details>
+              <summary>如何获取密钥？</summary>
+              <p>
+                向服务管理员获取。已拥有服务器管理权限时，可读取服务器上的
+                <code>/etc/llm-panel-operator.key</code>。
+              </p>
+            </details>
+          </form>
+        </section>
+        <p id="audit-private-status" class="notice" role="status"></p>
+        <section id="audit-workspace" hidden>
+          <form id="audit-filter-form" class="filterbar">
+            <label
+              >模型<select id="audit-model">
+                <option value="">全部模型</option>
+              </select></label
+            ><label class="grow"
+              >任务 / 聊天 ID<input
+                id="audit-task"
+                placeholder="输入完整 ID 筛选" /></label
+            ><button type="submit">筛选</button
+            ><button type="button" id="audit-reset">重置</button
+            ><label class="check"
+              ><input id="audit-auto" type="checkbox" checked />自动更新</label
+            ><button id="audit-lock" type="button">锁定</button>
+          </form>
+          <div class="panel request-panel">
+            <div class="panel-head">
+              <div>
+                <h2>最近请求</h2>
+                <p id="list-note">点击“查看对话”阅读输入与回答</p>
+              </div>
+              <button id="audit-filter" type="button">刷新列表</button>
+            </div>
+            <div class="audit-table-wrap">
+              <table class="audit-table">
+                <thead>
+                  <tr>
+                    <th>时间 / 模型</th>
+                    <th>结果</th>
+                    <th>输入 / 缓存</th>
+                    <th>输出</th>
+                    <th>耗时</th>
+                    <th><span class="sr-only">操作</span></th>
+                  </tr>
+                </thead>
+                <tbody id="audit-rows"></tbody>
+              </table>
+            </div>
+            <div id="request-empty" class="empty-state" hidden>
+              <h3>这个范围内没有请求</h3>
+              <p>试试“最近 7 天”，或取消模型、任务及验证请求筛选。</p>
+              <button id="empty-reset" type="button">
+                查看近 7 天全部请求
+              </button>
+            </div>
+            <button id="audit-more" type="button" hidden>加载更早请求</button>
+          </div>
+        </section>
+      </section>
       <footer>
-        <span>Read only · localhost telemetry · no Docker socket</span>
-        <span>{{FOOTER_NOTE}}</span>
+        只读监控 · 不会触发推理或重启服务 <span id="retention-note"></span>
       </footer>
     </main>
+    <dialog id="audit-detail" aria-labelledby="detail-title">
+      <div class="detail-header">
+        <div>
+          <p class="eyebrow" id="detail-meta"></p>
+          <h2 id="detail-title">请求详情</h2>
+        </div>
+        <button id="detail-close" type="button" aria-label="关闭请求详情">
+          关闭 ✕
+        </button>
+      </div>
+      <div class="detail-body">
+        <p id="audit-detail-note" class="notice"></p>
+        <div class="detail-pagination">
+          <button id="detail-newer" type="button">← 较新一条</button
+          ><span id="detail-position" class="muted"></span
+          ><button id="detail-older" type="button">较早一条 →</button>
+        </div>
+        <div id="detail-stats" class="detail-stats"></div>
+        <div class="detail-nav">
+          <div class="tabs" aria-label="详情视图">
+            <button
+              data-detail="conversation"
+              aria-current="page"
+              type="button"
+            >
+              对话</button
+            ><button data-detail="usage" type="button">Token 与耗时</button
+            ><button data-detail="raw" type="button">原始数据</button>
+          </div>
+          <button id="copy-answer" type="button">复制回答</button>
+        </div>
+        <p id="copy-status" class="muted" role="status"></p>
+        <div id="detail-conversation"></div>
+        <div id="detail-usage" hidden>
+          <dl id="usage-list" class="stat-list"></dl>
+          <details class="help">
+            <summary>查看完整统计 JSON</summary>
+            <pre id="audit-usage"></pre>
+          </details>
+        </div>
+        <div id="detail-raw" hidden>
+          <h3>输入</h3>
+          <pre id="audit-input"></pre>
+          <h3>输出</h3>
+          <pre id="audit-output"></pre>
+        </div>
+      </div>
+    </dialog>
     <script src="/app.js" defer></script>
   </body>
 </html>
