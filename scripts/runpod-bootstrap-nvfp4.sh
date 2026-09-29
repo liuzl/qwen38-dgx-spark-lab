@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# RunPod autostart bootstrap for Qwen3.8-27B NVFP4 + DFlash2 on vLLM v0.28.0.
+# RunPod autostart bootstrap for Qwen3.8-27B NVFP4 + MTP on vLLM v0.29.0.
 #
-# Used as the template env BOOTSTRAP with image vllm/vllm-openai:v0.28.0,
+# Used as the template env BOOTSTRAP with image vllm/vllm-openai:v0.29.0,
 # entrypoint `bash -c` and start command `eval "$BOOTSTRAP"`. Required env:
-#   LAB_COMMIT         commit of this repo to fetch docker/patch_vllm_dflash_v028.py from
-#   PATCH_SHA256       expected sha256 of that patch (bootstrap stops on mismatch)
 #   FINGERPRINT_VALUE  deployment ID returned as system_fingerprint
 # Optional: KV_BYTES (default 12 GiB, the MIG 48GB setting). Serves the base
 # alias only on 127.0.0.1:18102; the private adapter is not downloaded.
-# Progress goes to /workspace/timeline.log. First measured 2026-09-29:
-# order -> healthy 10.5 min on PRO 6000 MIG 48GB.
+# Progress goes to /workspace/timeline.log.
+#
+# 2026-09-29: switched from DFlash2 to the checkpoint's own MTP head (K7). On
+# RTX PRO 6000 MIG 48GB, DFlash2 produced runs of '!' in 3-9 of 72 long-prompt
+# stress requests; MTP produced none, at 10-15% lower single-stream speed and
+# 19% more KV. No DFlash patch or draft download is needed any more.
 set -u
 W=/workspace
 mkdir -p $W/run $W/models $W/cache/flashinfer
@@ -28,28 +30,21 @@ ts bootstrap-start
 
 python3 - <<'PY'
 from huggingface_hub import snapshot_download
-for repo, rev, d in [("RadixArk/Qwen3.8-27B-NVFP4", "319f741cce68d7914884900c138a1fbb70a42f30", "RadixArk-Qwen3.8-27B-NVFP4"),
-                     ("z-lab/Qwen3.8-27B-DFlash2", "50307d4c4cde6860d4eee73e2547cd786fe8e8a4", "Qwen3.8-27B-DFlash2")]:
+for repo, rev, d in [("RadixArk/Qwen3.8-27B-NVFP4", "319f741cce68d7914884900c138a1fbb70a42f30", "RadixArk-Qwen3.8-27B-NVFP4")]:
     snapshot_download(repo, revision=rev, local_dir=f"/workspace/models/{d}", max_workers=16)
     print("downloaded", repo, rev, flush=True)
 PY
 ts weights-ready
 
-# Pinned DFlash2 compile-cache fix from the public lab repo; fail closed on hash mismatch.
-python3 -c "import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])" "https://raw.githubusercontent.com/liuzl/qwen38-dgx-spark-lab/${LAB_COMMIT}/docker/patch_vllm_dflash_v028.py" $W/run/patch.py
-echo "${PATCH_SHA256}  $W/run/patch.py" | sha256sum -c - || { ts patch-hash-mismatch; sleep infinity; }
-SITE=$(python3 -c 'import os, vllm; print(os.path.dirname(vllm.__file__))')
-python3 $W/run/patch.py --site "$SITE" && python3 -m py_compile "$SITE/config/speculative.py" && ts patched
-
 ln -sfn $W/cache/flashinfer /root/.cache/flashinfer
-export VLLM_MARLIN_USE_ATOMIC_ADD=1 VLLM_PREFIX_CACHE_RETENTION_INTERVAL=1648 VLLM_CACHE_ROOT=$W/cache/prob-k7
+export VLLM_MARLIN_USE_ATOMIC_ADD=1 VLLM_PREFIX_CACHE_RETENTION_INTERVAL=1648 VLLM_CACHE_ROOT=$W/cache/mtp-k7
 nohup vllm serve $W/models/RadixArk-Qwen3.8-27B-NVFP4 --served-model-name qwen3.8-27b --host 127.0.0.1 --port 18102 \
   --max-model-len 131072 --gpu-memory-utilization 0.95 --kv-cache-memory-bytes ${KV_BYTES:-12884901888} \
   --max-num-seqs 10 --max-num-batched-tokens 16384 --enable-prefix-caching --enable-chunked-prefill \
   --kv-cache-dtype fp8_e4m3 --no-enable-flashinfer-autotune --trust-remote-code --reasoning-parser qwen3 \
   --tool-call-parser qwen3_xml --enable-auto-tool-choice --default-chat-template-kwargs '{"enable_thinking":false}' \
   --enable-prompt-tokens-details --fingerprint-mode custom --fingerprint-value "${FINGERPRINT_VALUE}" \
-  --speculative-config "{\"method\":\"dflash\",\"model\":\"$W/models/Qwen3.8-27B-DFlash2\",\"num_speculative_tokens\":7,\"draft_tensor_parallel_size\":1,\"draft_sample_method\":\"probabilistic\"}" \
+  --speculative-config '{"method":"mtp","num_speculative_tokens":7}' \
   > $W/run/vllm.log 2>&1 &
 VLLM_PID=$!
 ts vllm-started
