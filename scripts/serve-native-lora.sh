@@ -34,6 +34,30 @@ case "$retention_mode" in
   *) echo "PREFIX_CACHE_RETENTION_MODE must be cli or env" >&2; exit 1 ;;
 esac
 
+# Usage metadata: report cached prompt tokens (usage.prompt_tokens_details) and an
+# opaque deployment ID as system_fingerprint, matching serve-a100.sh.
+enable_prompt_tokens_details="${ENABLE_PROMPT_TOKENS_DETAILS:-1}"
+fingerprint_mode="${FINGERPRINT_MODE:-}"
+fingerprint_value="${FINGERPRINT_VALUE:-}"
+usage_args=()
+case "$enable_prompt_tokens_details" in
+  1) usage_args+=(--enable-prompt-tokens-details) ;;
+  0) usage_args+=(--no-enable-prompt-tokens-details) ;;
+  *) echo "ENABLE_PROMPT_TOKENS_DETAILS must be 0 or 1" >&2; exit 1 ;;
+esac
+case "$fingerprint_mode" in
+  "") ;;
+  full|hash|none) usage_args+=(--fingerprint-mode "$fingerprint_mode") ;;
+  custom)
+    if [[ -z "$fingerprint_value" ]]; then
+      echo "FINGERPRINT_VALUE is required when FINGERPRINT_MODE=custom" >&2
+      exit 1
+    fi
+    usage_args+=(--fingerprint-mode custom --fingerprint-value "$fingerprint_value")
+    ;;
+  *) echo "FINGERPRINT_MODE must be full, hash, custom or none" >&2; exit 1 ;;
+esac
+
 mkdir -p "$CACHE_DIR/flashinfer" "$CACHE_DIR/prob-k7-native-lora"
 
 docker rm -f "$container" >/dev/null 2>&1 || true
@@ -76,6 +100,7 @@ docker run -d \
   --tool-call-parser qwen3_xml \
   --enable-auto-tool-choice \
   --default-chat-template-kwargs '{"enable_thinking":false}' \
+  "${usage_args[@]}" \
   --enable-lora \
   --max-loras 1 \
   --max-lora-rank 1 \
