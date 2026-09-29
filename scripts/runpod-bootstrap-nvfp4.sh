@@ -4,8 +4,12 @@
 # Used as the template env BOOTSTRAP with image vllm/vllm-openai:v0.29.0,
 # entrypoint `bash -c` and start command `eval "$BOOTSTRAP"`. Required env:
 #   FINGERPRINT_VALUE  deployment ID returned as system_fingerprint
-# Optional: KV_BYTES (default 12 GiB, the MIG 48GB setting). Serves the base
-# alias only on 127.0.0.1:18102; the private adapter is not downloaded.
+# Optional: KV_BYTES (default 12 GiB, the MIG 48GB setting).
+# Optional adapter (serves qwen3.8-27b-uncensored next to the base alias):
+#   ARTIFACT_URL       URL of the adapter tar (tokenflow tf-artifacts Worker)
+#   ARTIFACT_TOKEN     bearer token, e.g. "{{ RUNPOD_SECRET_tf_artifacts_token }}"
+#   ADAPTER_TAR_SHA256 / ADAPTER_SHA256  expected hashes (tar, adapter_model.safetensors)
+# Without ARTIFACT_TOKEN only the base alias is served. Listens on 127.0.0.1:18102.
 # Progress goes to /workspace/timeline.log.
 #
 # 2026-09-29: switched from DFlash2 to the checkpoint's own MTP head (K7). On
@@ -36,6 +40,26 @@ for repo, rev, d in [("RadixArk/Qwen3.8-27B-NVFP4", "319f741cce68d7914884900c138
 PY
 ts weights-ready
 
+lora_args=()
+if [[ -n "${ARTIFACT_TOKEN:-}" ]]; then
+  python3 - <<'PY' || { ts adapter-failed; sleep infinity; }
+import hashlib, os, tarfile, urllib.request
+req = urllib.request.Request(os.environ["ARTIFACT_URL"], headers={"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "tokenflow-bootstrap/1"})
+data = urllib.request.urlopen(req, timeout=300).read()
+assert hashlib.sha256(data).hexdigest() == os.environ["ADAPTER_TAR_SHA256"], "adapter tar hash mismatch"
+open("/workspace/adapter.tar", "wb").write(data)
+with tarfile.open("/workspace/adapter.tar") as t:
+    t.extractall("/workspace/models", filter="data")
+got = hashlib.sha256(open("/workspace/models/adapter/adapter_model.safetensors", "rb").read()).hexdigest()
+assert got == os.environ["ADAPTER_SHA256"], "adapter weights hash mismatch"
+os.remove("/workspace/adapter.tar")
+print("adapter ready", got[:12], flush=True)
+PY
+  lora_args=(--enable-lora --max-loras 1 --max-lora-rank 1 --lora-dtype bfloat16
+             --lora-modules qwen3.8-27b-uncensored=$W/models/adapter)
+  ts adapter-ready
+fi
+
 ln -sfn $W/cache/flashinfer /root/.cache/flashinfer
 export VLLM_MARLIN_USE_ATOMIC_ADD=1 VLLM_PREFIX_CACHE_RETENTION_INTERVAL=1648 VLLM_CACHE_ROOT=$W/cache/mtp-k7
 nohup vllm serve $W/models/RadixArk-Qwen3.8-27B-NVFP4 --served-model-name qwen3.8-27b --host 127.0.0.1 --port 18102 \
@@ -45,6 +69,7 @@ nohup vllm serve $W/models/RadixArk-Qwen3.8-27B-NVFP4 --served-model-name qwen3.
   --tool-call-parser qwen3_xml --enable-auto-tool-choice --default-chat-template-kwargs '{"enable_thinking":false}' \
   --enable-prompt-tokens-details --fingerprint-mode custom --fingerprint-value "${FINGERPRINT_VALUE}" \
   --speculative-config '{"method":"mtp","num_speculative_tokens":7}' \
+  "${lora_args[@]}" \
   > $W/run/vllm.log 2>&1 &
 VLLM_PID=$!
 ts vllm-started
