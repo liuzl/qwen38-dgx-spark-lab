@@ -35,6 +35,9 @@ if docker inspect "$BACKUP_CONTAINER" >/dev/null 2>&1; then
 fi
 log "plan: $CONTAINER ($current_image) -> $NEW_IMAGE, backup $BACKUP_CONTAINER, cache $NEW_CACHE_DIR"
 [[ "$DRY" == --dry-run ]] && { log "dry run: no changes made"; exit 0; }
+# Create the cache dir before the window: serve-native-lora.sh refuses a missing
+# CACHE_DIR, which would otherwise fail only after production has been stopped.
+mkdir -p "$NEW_CACHE_DIR"
 
 rollback() {
   log "ROLLBACK: restoring $BACKUP_CONTAINER as $CONTAINER"
