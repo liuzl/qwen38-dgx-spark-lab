@@ -14,7 +14,9 @@
 #      old container back and start it (rollback), exit non-zero
 #
 # usage: switch-a100-production.sh   (env: NEW_MODEL NEW_REVISION NEW_ADAPTER_DIR
-#        NEW_DTYPE KERNEL_GATE ROLLBACK_SUFFIX)
+#        NEW_DTYPE NEW_IMAGE KERNEL_GATE ROLLBACK_SUFFIX)
+# NEW_IMAGE defaults to the image already in .multimodal.env, so a model-only
+# switch leaves the runtime unchanged; set it to move vLLM versions.
 set -euo pipefail
 export DOCKER_API_VERSION="${DOCKER_API_VERSION:-1.43}"
 BASE="${A100_BASE:-/databank/zliu/qwen38-a100}"
@@ -32,6 +34,7 @@ IMAGE_FIXTURE="${IMAGE_FIXTURE:-$LOGS/perf-image.png}"
 
 # shellcheck disable=SC1090
 set -a; source "$ENV_FILE"; set +a
+NEW_IMAGE="${NEW_IMAGE:-$IMAGE}"
 PROD="$CONTAINER"; PORT_="$PORT"; BASE_ALIAS="$SERVED_MODEL_NAME"; ADAPTER_ALIAS="$ADAPTER_MODEL_NAME"
 OLD_NAME="$PROD-$ROLLBACK_SUFFIX"
 url="http://127.0.0.1:$PORT_"
@@ -67,18 +70,19 @@ trap on_exit EXIT
 [[ -d "$HF_CACHE/hub/models--${NEW_MODEL//\//--}/snapshots/$NEW_REVISION" ]] || { echo "missing snapshot for $NEW_MODEL@$NEW_REVISION" >&2; exit 1; }
 [[ -f "$IMAGE_FIXTURE" ]] || { echo "missing image fixture" >&2; exit 1; }
 
-echo "[$(date -u +%FT%TZ)] $RUN_ID: $MODEL@${MODEL_REVISION:0:8} -> $NEW_MODEL@${NEW_REVISION:0:8}, adapter $(basename "$NEW_ADAPTER_DIR")"
+docker image inspect "$NEW_IMAGE" >/dev/null || { echo "image $NEW_IMAGE not present locally; pull it before the window" >&2; exit 1; }
+echo "[$(date -u +%FT%TZ)] $RUN_ID: $MODEL@${MODEL_REVISION:0:8} -> $NEW_MODEL@${NEW_REVISION:0:8}, adapter $(basename "$NEW_ADAPTER_DIR"), image ${NEW_IMAGE##*/}"
 cp "$ENV_FILE" "$ENV_FILE.before-$RUN_ID"
-python3 - "$ENV_FILE" "$NEW_MODEL" "$NEW_REVISION" "$NEW_ADAPTER_DIR" "$NEW_DTYPE" <<'PY'
+python3 - "$ENV_FILE" "$NEW_MODEL" "$NEW_REVISION" "$NEW_ADAPTER_DIR" "$NEW_DTYPE" "$NEW_IMAGE" <<'PY'
 import re, sys
-path, model, rev, adapter, dtype = sys.argv[1:]
+path, model, rev, adapter, dtype, image = sys.argv[1:]
 text = open(path).read()
-for key, val in (("MODEL", model), ("MODEL_REVISION", rev), ("ADAPTER_DIR", adapter), ("DTYPE", dtype)):
+for key, val in (("MODEL", model), ("MODEL_REVISION", rev), ("ADAPTER_DIR", adapter), ("DTYPE", dtype), ("IMAGE", image)):
     text, n = re.subn(rf"^{key}=.*$", f"{key}={val}", text, flags=re.M)
     assert n == 1, f"{key} not found exactly once"
 open(path, "w").write(text)
 PY
-grep -E '^(MODEL|MODEL_REVISION|ADAPTER_DIR|DTYPE)=' "$ENV_FILE" | sed 's/^/  env: /'
+grep -E '^(MODEL|MODEL_REVISION|ADAPTER_DIR|DTYPE|IMAGE)=' "$ENV_FILE" | sed 's/^/  env: /'
 
 echo "[$(date -u +%FT%TZ)] stopping and renaming $PROD -> $OLD_NAME"
 docker stop "$PROD" >/dev/null
