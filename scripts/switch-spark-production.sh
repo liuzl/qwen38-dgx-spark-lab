@@ -7,7 +7,8 @@
 #   3. wait for /health, then run gate-spark.sh; any failure removes the new
 #      container and restores the backup under the original name
 #
-# Required: the serve-native-lora.sh variables (MODEL_DIR DRAFT_DIR ADAPTER_DIR),
+# Required: the serve-native-lora.sh variables (MODEL_DIR ADAPTER_DIR, plus DRAFT_DIR
+#   when SPECULATIVE_METHOD=dflash, the default),
 #   NEW_IMAGE, NEW_CACHE_DIR, IMAGE_FIXTURE.
 # Optional: EXPECT_OLD_IMAGE (abort unless production runs it), REFERENCE_LABEL
 #   (gate run to compare against), PREFIX_CACHE_RETENTION_MODE (env for v0.28.0),

@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-required=(MODEL_DIR DRAFT_DIR ADAPTER_DIR CACHE_DIR)
+# Speculative decoding: dflash (external DFlash2 draft in DRAFT_DIR, needs the
+# patched image), mtp (the checkpoint's own MTP head, stock image) or none.
+speculative_method="${SPECULATIVE_METHOD:-dflash}"
+num_speculative_tokens="${NUM_SPECULATIVE_TOKENS:-7}"
+case "$speculative_method" in
+  dflash) required=(MODEL_DIR DRAFT_DIR ADAPTER_DIR CACHE_DIR) ;;
+  mtp|none) required=(MODEL_DIR ADAPTER_DIR CACHE_DIR) ;;
+  *) echo "SPECULATIVE_METHOD must be dflash, mtp or none" >&2; exit 1 ;;
+esac
 for name in "${required[@]}"; do
   if [[ -z "${!name:-}" ]]; then
     echo "missing required environment variable: $name" >&2
@@ -58,6 +66,17 @@ case "$fingerprint_mode" in
   *) echo "FINGERPRINT_MODE must be full, hash, custom or none" >&2; exit 1 ;;
 esac
 
+spec_mount=()
+spec_args=()
+case "$speculative_method" in
+  dflash)
+    spec_mount=(-v "$DRAFT_DIR:/draft:ro")
+    spec_args=(--speculative-config "{\"method\":\"dflash\",\"model\":\"/draft\",\"num_speculative_tokens\":$num_speculative_tokens,\"draft_tensor_parallel_size\":1,\"draft_sample_method\":\"probabilistic\"}")
+    ;;
+  mtp) spec_args=(--speculative-config "{\"method\":\"mtp\",\"num_speculative_tokens\":$num_speculative_tokens}") ;;
+  none) ;;
+esac
+
 mkdir -p "$CACHE_DIR/flashinfer" "$CACHE_DIR/prob-k7-native-lora"
 
 docker rm -f "$container" >/dev/null 2>&1 || true
@@ -76,7 +95,7 @@ docker run -d \
   -e VLLM_MARLIN_USE_ATOMIC_ADD=1 \
   "${retention_env[@]}" \
   -v "$MODEL_DIR:/model:ro" \
-  -v "$DRAFT_DIR:/draft:ro" \
+  "${spec_mount[@]}" \
   -v "$ADAPTER_DIR:/adapter:ro" \
   -v "$CACHE_DIR:/vllm-cache" \
   -v "$CACHE_DIR/flashinfer:/root/.cache/flashinfer" \
@@ -106,7 +125,6 @@ docker run -d \
   --max-lora-rank 1 \
   --lora-dtype bfloat16 \
   --lora-modules "$adapter_model_name=/adapter" \
-  --speculative-config \
-    '{"method":"dflash","model":"/draft","num_speculative_tokens":7,"draft_tensor_parallel_size":1,"draft_sample_method":"probabilistic"}'
+  "${spec_args[@]}"
 
 echo "started $container on :$port"
