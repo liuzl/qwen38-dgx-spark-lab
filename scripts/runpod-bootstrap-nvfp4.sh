@@ -10,6 +10,9 @@
 #   ARTIFACT_TOKEN     bearer token, e.g. "{{ RUNPOD_SECRET_tf_artifacts_token }}"
 #   ADAPTER_TAR_SHA256 / ADAPTER_SHA256  expected hashes (tar, adapter_model.safetensors)
 # Without ARTIFACT_TOKEN only the base alias is served. Listens on 127.0.0.1:18102.
+# Optional data-plane tunnel (tokenflow ADR-0009 §2), started once vLLM is healthy:
+#   TUNNEL_TOKEN       Cloudflare Tunnel token, e.g. "{{ RUNPOD_SECRET_tf_runpod_tunnel_token }}"
+#   CLOUDFLARED_URL / CLOUDFLARED_SHA256  pinned static cloudflared binary and its hash
 # Progress goes to /workspace/timeline.log.
 #
 # 2026-09-29: switched from DFlash2 to the checkpoint's own MTP head (K7). On
@@ -78,4 +81,13 @@ until python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.
   sleep 5
 done
 ts vllm-healthy
+
+if [[ -n "${TUNNEL_TOKEN:-}" ]]; then
+  python3 -c "import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])" "$CLOUDFLARED_URL" $W/run/cloudflared
+  echo "${CLOUDFLARED_SHA256}  $W/run/cloudflared" | sha256sum -c - || { ts cloudflared-hash-mismatch; sleep infinity; }
+  chmod 700 $W/run/cloudflared
+  ( umask 077; printf '%s' "$TUNNEL_TOKEN" > $W/run/tunnel-token )
+  nohup $W/run/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run --token-file $W/run/tunnel-token > $W/run/cloudflared.log 2>&1 &
+  ts tunnel-started
+fi
 sleep infinity
