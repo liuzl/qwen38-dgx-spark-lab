@@ -1,0 +1,21 @@
+event: message_start
+data: {"type":"message_start","message":{"id":"chatcmpl-9fcb2a46e43f2843","type":"message","role":"assistant","content":[],"model":"qwen3.8-27b","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":3531,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","content_block":{"type":"tool_use","id":"chatcmpl-tool-8cbb66978a59acf8","name":"terminal","input":{}},"index":0}
+
+event: content_block_delta
+data: {"type":"content_block_delta","delta":{"type":"input_json_delta","partial_json":"{\"command\": \"ls"},"index":0}
+
+event: content_block_delta
+data: {"type":"content_block_delta","delta":{"type":"input_json_delta","partial_json":"\"}"},"index":0}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":1035,"output_tokens":26,"cache_creation_input_tokens":0,"cache_read_input_tokens":2496}}
+
+event: message_stop
+data: {"type":"message_stop"}
+

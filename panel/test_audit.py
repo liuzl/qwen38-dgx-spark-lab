@@ -53,6 +53,48 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(capture.usage['input_tokens'],12)
         self.assertTrue(capture.terminal)
 
+    def test_anthropic_stream_usage_and_terminal(self):
+        # Real vLLM 0.29.0 stream: cached prompt, forced tool call (input_json_delta).
+        body=(Path(__file__).parent/'fixtures'/'vllm-0.29.0-messages-tool-cached.sse').read_bytes()
+        for size in (7,64,len(body)):
+            capture=audit.Capture()
+            for offset in range(0,len(body),size): capture.feed(body[offset:offset+size],True)
+            self.assertTrue(capture.terminal)
+            self.assertFalse(capture.failed)
+            self.assertIsNotNone(capture.first_token)
+            self.assertTrue(capture.request_id.startswith('chatcmpl-'))
+            self.assertEqual(audit.token_counts(capture.usage),(3531,2496,26,None))
+
+    def test_anthropic_usage_adds_cache_reads_and_writes(self):
+        warm={'input_tokens':1370,'output_tokens':1,'cache_creation_input_tokens':0,'cache_read_input_tokens':1664}
+        cold={'input_tokens':1370,'output_tokens':1,'cache_creation_input_tokens':1664,'cache_read_input_tokens':0}
+        self.assertEqual(audit.token_counts(warm),(3034,1664,1,None))
+        self.assertEqual(audit.token_counts(cold),(3034,0,1,None))
+        # message_start alone (stream cut before message_delta): whole prompt, cache unknown
+        self.assertEqual(audit.token_counts({'input_tokens':3034,'output_tokens':0}),(3034,None,0,None))
+        self.assertEqual(audit.token_counts({'prompt_tokens':100,'completion_tokens':5,'prompt_tokens_details':{'cached_tokens':64}}),(100,64,5,None))
+
+    def test_messages_endpoint_is_recorded(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict('os.environ',{'AUDIT_DB':folder+'/audit.db'}):
+            response={'id':'chatcmpl-1','type':'message','role':'assistant','content':[{'type':'text','text':'ok'}],
+                      'usage':{'input_tokens':1370,'output_tokens':1,'cache_creation_input_tokens':0,'cache_read_input_tokens':1664}}
+            async def app(scope,receive,send):
+                await receive()
+                await send({'type':'http.response.start','status':200,'headers':[(b'content-type',b'application/json')]})
+                await send({'type':'http.response.body','body':json.dumps(response).encode()})
+            middleware=audit.RequestAuditMiddleware(app)
+            messages=[]
+            async def receive(): return {'type':'http.request','body':b'{"model":"qwen3.8-27b","messages":[]}'}
+            async def send(msg): messages.append(msg)
+            for path in ('/v1/messages','/v1/messages/count_tokens'):
+                asyncio.run(middleware({'type':'http','method':'POST','path':path,'headers':[]},receive,send))
+            middleware.store.queue.join()
+            self.assertEqual(json.loads(messages[1]['body']),response)
+            rows=AuditReader(folder+'/audit.db').requests(1)['requests']
+            self.assertEqual(len(rows),1)  # count_tokens is not inference
+            self.assertEqual((rows[0]['endpoint'],rows[0]['input_tokens'],rows[0]['cached_tokens'],rows[0]['output_tokens'],rows[0]['outcome']),
+                             ('/v1/messages',3034,1664,1,'ok'))
+
     def test_failure_is_recorded_and_propagated(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict('os.environ',{'AUDIT_DB':folder+'/audit.db'}):
             async def app(scope,receive,send): raise RuntimeError('test')

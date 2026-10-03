@@ -14,6 +14,23 @@ from pathlib import Path
 
 LOG = logging.getLogger(__name__)
 LIMIT = int(os.environ.get('AUDIT_BODY_LIMIT', '2097152'))
+PATHS = ('/v1/chat/completions', '/v1/completions', '/v1/responses', '/v1/messages')
+ANTHROPIC_DELTAS = ('text', 'thinking', 'partial_json')
+
+def token_counts(usage):
+    """(input, cached, output, reasoning) from OpenAI, Responses or Anthropic usage.
+
+    Anthropic input_tokens excludes cache reads and writes (vLLM 0.29: a 3,034-token prompt with
+    1,664 cached reports input 1,370 + cache_read 1,664), so both are added back to the input.
+    """
+    output_details = usage.get('completion_tokens_details') or usage.get('output_tokens_details') or {}
+    output = usage.get('completion_tokens', usage.get('output_tokens'))
+    if 'cache_read_input_tokens' in usage or 'cache_creation_input_tokens' in usage:
+        read = usage.get('cache_read_input_tokens') or 0
+        total = (usage.get('input_tokens') or 0) + read + (usage.get('cache_creation_input_tokens') or 0)
+        return total, read, output, output_details.get('reasoning_tokens')
+    details = usage.get('prompt_tokens_details') or usage.get('input_tokens_details') or {}
+    return usage.get('prompt_tokens', usage.get('input_tokens')), details.get('cached_tokens'), output, output_details.get('reasoning_tokens')
 
 SCHEMA = '''CREATE TABLE IF NOT EXISTS requests (
  id TEXT PRIMARY KEY, started REAL, endpoint TEXT, model TEXT, task TEXT,
@@ -95,8 +112,10 @@ class Capture:
     def event(self, obj):
         if not isinstance(obj, dict):
             return
-        root = obj.get('response') if isinstance(obj.get('response'), dict) else obj
+        # Responses wraps the final object in 'response'; Anthropic message_start wraps it in 'message'.
+        root = next((obj[k] for k in ('response', 'message') if isinstance(obj.get(k), dict)), obj)
         if isinstance(root.get('usage'), dict):
+            # Anthropic message_delta carries the split usage (with cache fields) after message_start.
             self.usage = root['usage']
         if isinstance(root.get('metrics'), dict):
             self.metrics = root['metrics']
@@ -105,11 +124,12 @@ class Capture:
         kind = obj.get('type', '')
         if obj.get('error') or kind in ('response.failed', 'response.incomplete', 'error'):
             self.failed = True
-        if kind in ('response.completed', 'response.failed', 'response.incomplete'):
+        if kind in ('response.completed', 'response.failed', 'response.incomplete', 'message_stop'):
             self.terminal = True
         choices = obj.get('choices') or []
         has_token = any(isinstance(c, dict) and (c.get('text') or any((c.get('delta') or {}).get(k) for k in ('content','reasoning','reasoning_content','tool_calls'))) for c in choices)
         has_token = has_token or (kind.endswith('.delta') and bool(obj.get('delta')))
+        has_token = has_token or (kind == 'content_block_delta' and any((obj.get('delta') or {}).get(k) for k in ANTHROPIC_DELTAS))
         if has_token and self.first_token is None:
             self.first_token = time.monotonic()
 
@@ -156,7 +176,7 @@ class RequestAuditMiddleware:
             await send({'type':'http.response.start','status':200,'headers':[(b'content-type',b'application/json')]})
             await send({'type':'http.response.body','body':body})
             return
-        if scope['type'] != 'http' or scope.get('method') != 'POST' or scope['path'] not in ('/v1/chat/completions','/v1/completions','/v1/responses'):
+        if scope['type'] != 'http' or scope.get('method') != 'POST' or scope['path'] not in PATHS:
             return await self.app(scope, receive, send)
         started, tick = time.time(), time.monotonic()
         request = bytearray()
@@ -211,8 +231,7 @@ class RequestAuditMiddleware:
                 headers = dict(scope.get('headers',[]))
                 task = headers.get(b'x-task-id', b'').decode(errors='replace')[:200] or None
                 usage = response.usage or {}
-                details = usage.get('prompt_tokens_details') or usage.get('input_tokens_details') or {}
-                output_details = usage.get('completion_tokens_details') or usage.get('output_tokens_details') or {}
+                input_tokens, cached_tokens, output_tokens, reasoning_tokens = token_counts(usage)
                 metrics = response.metrics or {}
                 metrics['upstream_request_id'] = response.request_id
                 metrics['caller_id'] = headers.get(b'x-audit-caller', b'').decode(errors='replace')[:200] or None
@@ -222,8 +241,7 @@ class RequestAuditMiddleware:
                 self.store.submit((
                     uuid.uuid4().hex, started, scope['path'], str(payload.get('model',''))[:200], task,
                     status, outcome, round((time.monotonic()-tick)*1000,3), ttft,
-                    usage.get('prompt_tokens',usage.get('input_tokens')), details.get('cached_tokens'),
-                    usage.get('completion_tokens',usage.get('output_tokens')), output_details.get('reasoning_tokens'),
+                    input_tokens, cached_tokens, output_tokens, reasoning_tokens,
                     request.decode(errors='replace'), response.body.decode(errors='replace'),
                     int(truncated or response.truncated), json.dumps(usage), json.dumps(metrics)
                 ))

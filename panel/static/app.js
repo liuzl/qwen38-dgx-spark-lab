@@ -489,6 +489,12 @@ function contentText(content) {
       if (type.includes("image")) return "[图片输入]";
       if (type.includes("audio")) return "[音频输入]";
       if (type.includes("video")) return "[视频输入]";
+      // Anthropic Messages blocks
+      if (type === "tool_use")
+        return `[工具调用 ${part.name || ""}]\n${JSON.stringify(part.input ?? {}, null, 2)}`;
+      if (type === "tool_result")
+        return `[工具结果]\n${contentText(part.content)}`;
+      if (type === "thinking") return `[推理]\n${part.thinking || ""}`;
       return typeof part.text === "string"
         ? part.text
         : JSON.stringify(part, null, 2);
@@ -521,6 +527,33 @@ function parseResponse(raw) {
       result.answer += obj.delta || "";
     if (obj.type?.includes("reasoning") && obj.type.endsWith(".delta"))
       result.reasoning += obj.delta || "";
+    // Anthropic Messages: streamed blocks, or the whole message when not streamed
+    if (obj.type === "content_block_start" && obj.content_block?.type === "tool_use")
+      toolDeltas.set(`block:${obj.index ?? 0}`, {
+        name: obj.content_block.name || "",
+        arguments: "",
+      });
+    if (obj.type === "content_block_delta") {
+      const delta = obj.delta || {};
+      if (delta.type === "text_delta") result.answer += delta.text || "";
+      if (delta.type === "thinking_delta") result.reasoning += delta.thinking || "";
+      if (delta.type === "input_json_delta") {
+        const key = `block:${obj.index ?? 0}`;
+        const existing = toolDeltas.get(key) || { name: "", arguments: "" };
+        existing.arguments += delta.partial_json || "";
+        toolDeltas.set(key, existing);
+      }
+    }
+    if (obj.type === "message" && Array.isArray(obj.content))
+      for (const block of obj.content) {
+        if (block.type === "text") result.answer += block.text || "";
+        else if (block.type === "thinking") result.reasoning += block.thinking || "";
+        else if (block.type === "tool_use")
+          result.tools.push({
+            name: block.name,
+            arguments: JSON.stringify(block.input ?? {}),
+          });
+      }
     if (obj.response?.output) finalResponse = obj.response;
     if (obj.output) finalResponse = obj;
     for (const choice of obj.choices || []) {
@@ -584,12 +617,11 @@ function renderConversation(data) {
     tool: "工具结果",
   };
   if (payload) {
-    if (payload.instructions) {
+    // Responses `instructions` / Anthropic top-level `system`
+    const instructions = payload.instructions ?? payload.system;
+    if (instructions) {
       const d = node("details");
-      d.append(
-        node("summary", "系统指令"),
-        node("pre", contentText(payload.instructions)),
-      );
+      d.append(node("summary", "系统指令"), node("pre", contentText(instructions)));
       container.append(d);
     }
     let messages = payload.messages ?? payload.input ?? payload.prompt;

@@ -94,3 +94,42 @@ test("truncated SSE retains complete previous events", () => {
     "partial",
   );
 });
+test("Anthropic stream: tool_use name and streamed input arguments (real vLLM 0.29.0)", () => {
+  const raw = fs.readFileSync(
+    __dirname + "/fixtures/vllm-0.29.0-messages-tool-cached.sse",
+    "utf8",
+  );
+  const result = parse(raw);
+  assert.equal(result.tools.length, 1);
+  assert.equal(result.tools[0].name, "terminal");
+  assert.equal(JSON.parse(result.tools[0].arguments).command.includes("ls"), true);
+});
+test("Anthropic text/thinking deltas and non-streamed message", () => {
+  const events = [
+    { type: "content_block_delta", index: 0, delta: { type: "thinking_delta", thinking: "why" } },
+    { type: "content_block_delta", index: 1, delta: { type: "text_delta", text: "Hi " } },
+    { type: "content_block_delta", index: 1, delta: { type: "text_delta", text: "there" } },
+  ];
+  const streamed = parse(events.map((e) => "data: " + JSON.stringify(e)).join("\n\n"));
+  assert.equal(streamed.answer, "Hi there");
+  assert.equal(streamed.reasoning, "why");
+  const whole = parse(
+    JSON.stringify({
+      type: "message",
+      content: [
+        { type: "thinking", thinking: "r" },
+        { type: "text", text: "done" },
+        { type: "tool_use", id: "t", name: "terminal", input: { command: "ls" } },
+      ],
+    }),
+  );
+  assert.equal(whole.answer, "done");
+  assert.equal(whole.reasoning, "r");
+  assert.deepEqual(JSON.parse(JSON.stringify(whole.tools)), [{ name: "terminal", arguments: '{"command":"ls"}' }]);
+  assert.equal(
+    context.contentText([
+      { type: "tool_result", tool_use_id: "t", content: [{ type: "text", text: "a.txt" }] },
+    ]),
+    "[工具结果]\na.txt",
+  );
+});
