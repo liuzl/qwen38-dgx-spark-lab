@@ -73,13 +73,17 @@ trap on_exit EXIT
 docker image inspect "$NEW_IMAGE" >/dev/null || { echo "image $NEW_IMAGE not present locally; pull it before the window" >&2; exit 1; }
 echo "[$(date -u +%FT%TZ)] $RUN_ID: $MODEL@${MODEL_REVISION:0:8} -> $NEW_MODEL@${NEW_REVISION:0:8}, adapter $(basename "$NEW_ADAPTER_DIR"), image ${NEW_IMAGE##*/}"
 cp "$ENV_FILE" "$ENV_FILE.before-$RUN_ID"
-python3 - "$ENV_FILE" "$NEW_MODEL" "$NEW_REVISION" "$NEW_ADAPTER_DIR" "$NEW_DTYPE" "$NEW_IMAGE" <<'PY'
-import re, sys
-path, model, rev, adapter, dtype, image = sys.argv[1:]
+python3 - "$ENV_FILE" "$NEW_MODEL" "$NEW_REVISION" "$NEW_ADAPTER_DIR" "$NEW_DTYPE" "$NEW_IMAGE" "${NEW_LIMIT_MM_PER_PROMPT:-}" <<'PY'
+import json, re, shlex, sys
+path, model, rev, adapter, dtype, image, media_limit = sys.argv[1:]
 text = open(path).read()
 for key, val in (("MODEL", model), ("MODEL_REVISION", rev), ("ADAPTER_DIR", adapter), ("DTYPE", dtype), ("IMAGE", image)):
     text, n = re.subn(rf"^{key}=.*$", f"{key}={val}", text, flags=re.M)
     assert n == 1, f"{key} not found exactly once"
+if media_limit:
+    json.loads(media_limit)
+    text, n = re.subn(r"^LIMIT_MM_PER_PROMPT=.*$", "LIMIT_MM_PER_PROMPT=" + shlex.quote(media_limit), text, flags=re.M)
+    assert n == 1, "LIMIT_MM_PER_PROMPT not found exactly once"
 open(path, "w").write(text)
 PY
 grep -E '^(MODEL|MODEL_REVISION|ADAPTER_DIR|DTYPE|IMAGE)=' "$ENV_FILE" | sed 's/^/  env: /'
@@ -110,7 +114,8 @@ for alias in "$BASE_ALIAS" "$ADAPTER_ALIAS"; do
   echo "canaries ($alias): passed"
 done
 echo "[$(date -u +%FT%TZ)] gate: image inputs"
-python3 "$LAB/scripts/validate-multimodal.py" --direct --base-url "$url" --image "$IMAGE_FIXTURE" --models "$BASE_ALIAS" "$ADAPTER_ALIAS" --remote-url-probe "http://127.0.0.1:$PORT_/health" | tee "$LOGS/$RUN_ID-multimodal.txt"
+media_max=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["image"])' "${NEW_LIMIT_MM_PER_PROMPT:-$LIMIT_MM_PER_PROMPT}")
+python3 "$LAB/scripts/validate-multimodal.py" --direct --base-url "$url" --image "$IMAGE_FIXTURE" --max-images "$media_max" --models "$BASE_ALIAS" "$ADAPTER_ALIAS" --remote-url-probe "http://127.0.0.1:$PORT_/health" | tee "$LOGS/$RUN_ID-multimodal.txt"
 echo "[$(date -u +%FT%TZ)] gate: prefix-cache isolation"
 docker exec "$PROD" python3 /lab/scripts/validate-cache-isolation.py --base-url "$url" --base-model "$BASE_ALIAS" --adapter-model "$ADAPTER_ALIAS" >"$LOGS/$RUN_ID-cache-isolation.json"
 echo "cache isolation: passed"

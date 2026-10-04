@@ -66,6 +66,7 @@ mark canaries "$canary_ok"
 
 log "3/6 image OCR"
 py validate-multimodal.py --direct --base-url "$URL" --image "$IMAGE_FIXTURE" --models "${aliases[@]}" \
+  --max-images "${MAX_IMAGES:-4}" \
   --remote-url-probe "$URL/health" >"$OUT/multimodal.txt" 2>&1 || true
 ocr_ok=$(grep -c -E "^ok: .* image$" "$OUT/multimodal.txt")
 if [[ "$ocr_ok" -ge $((3 * ${#aliases[@]})) ]]; then mark image passed; else mark image "FAILED ($ocr_ok OCR ok)"; fi

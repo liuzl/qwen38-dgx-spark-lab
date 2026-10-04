@@ -48,6 +48,21 @@ enable_prompt_tokens_details="${ENABLE_PROMPT_TOKENS_DETAILS:-1}"
 fingerprint_mode="${FINGERPRINT_MODE:-}"
 fingerprint_value="${FINGERPRINT_VALUE:-}"
 usage_args=()
+media_args=()
+# Optional explicit multimodal serving budget. Keep defaults for old lab profiles.
+if [[ -n "${LIMIT_MM_PER_PROMPT:-}" ]]; then
+  media_args+=(--limit-mm-per-prompt "$LIMIT_MM_PER_PROMPT")
+fi
+if [[ -n "${MM_PROCESSOR_KWARGS:-}" ]]; then
+  media_args+=(--mm-processor-kwargs "$MM_PROCESSOR_KWARGS")
+fi
+if [[ -n "${MM_PROCESSOR_CACHE_GB:-}" ]]; then
+  media_args+=(--mm-processor-cache-gb "$MM_PROCESSOR_CACHE_GB")
+fi
+if [[ -n "${ALLOWED_MEDIA_DOMAINS:-}" ]]; then
+  read -r -a media_domains <<<"$ALLOWED_MEDIA_DOMAINS"
+  media_args+=(--allowed-media-domains "${media_domains[@]}")
+fi
 case "$enable_prompt_tokens_details" in
   1) usage_args+=(--enable-prompt-tokens-details) ;;
   0) usage_args+=(--no-enable-prompt-tokens-details) ;;
@@ -109,6 +124,7 @@ docker run -d \
   --kv-cache-memory-bytes "$kv_cache_bytes" \
   --max-num-seqs "$max_num_seqs" \
   --max-num-batched-tokens "$max_num_batched_tokens" \
+  "${media_args[@]}" \
   --enable-prefix-caching \
   "${retention_arg[@]}" \
   --enable-chunked-prefill \
