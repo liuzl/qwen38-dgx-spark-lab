@@ -78,7 +78,7 @@ def main():
                 results=[j.result() for j in jobs]
                 text_result=sentinel.result() if sentinel else None
             for result,text in results:
-                result.update(ok=result['status']==200 and (re.findall(r'\b\d{4}\b',text)==[str(7400+n-1)] if n else 'text-ok' in text), model=model,images=n,protocol=protocol,context_repetitions=context_words,concurrency=c,cache_phase=phase,repetition=rep)
+                result.update(ocr_codes=re.findall(r'\b\d{4}\b',text) if n else [], ok=result['status']==200 and (re.findall(r'\b\d{4}\b',text)==[str(7400+n-1)] if n else 'text-ok' in text), model=model,images=n,protocol=protocol,context_repetitions=context_words,concurrency=c,cache_phase=phase,repetition=rep)
                 rows.append(result)
             if text_result:
                 r,text=text_result;r.update(ok=r['status']==200 and 'text-ok' in text,model=model,images=0,protocol='chat',competing_images=n,context_repetitions=context_words,concurrency=c,cache_phase=phase,repetition=rep);rows.append(r)
