@@ -1,0 +1,13 @@
+# Build only after the engine image has passed binary/SM inspection.
+ARG ENGINE_IMAGE=strata-pilot:fb58e0d-sm80-sm89-portable
+FROM ${ENGINE_IMAGE}
+COPY scripts/strata*.py /opt/pilot/scripts/
+COPY tests/test_strata_pilot.py /opt/pilot/tests/test_strata_pilot.py
+RUN /opt/strata/.venv/bin/pip install --no-cache-dir huggingface_hub==0.36.0 \
+    && test -x /opt/strata/engine/strata \
+    && test -x /opt/strata/engine/strata-vision \
+    && /opt/strata/.venv/bin/python -m compileall -q /opt/pilot \
+    && /opt/strata/.venv/bin/python /opt/pilot/scripts/strata_verify_image.py > /opt/pilot/image-proof.json
+# Explicit Orca configuration only: never trigger setup.py downloads/recompilation.
+ENTRYPOINT ["/opt/strata/.venv/bin/python", "-m", "serve.server", "--engine", "strata"]
+CMD ["--config", "/workspace/strata-pilot.json", "--host", "127.0.0.1", "--port", "8080"]

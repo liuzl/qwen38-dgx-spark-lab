@@ -254,3 +254,9 @@ new runtime, checkpoint, driver, CUDA, MLX, or operating-system revision.
 Repository-authored code is Apache-2.0. Third-party projects and model artifacts
 retain their own licenses. See [NOTICE](NOTICE) and
 [Model and artifact licenses](docs/licenses.md).
+
+## Strata RunPod pilot
+
+The isolated Flash-Next experiment build and qualification tools are documented in
+[docker/strata-runpod/README.md](docker/strata-runpod/README.md). No production serving
+profile is changed, and local fault-test success is not GPU qualification.
