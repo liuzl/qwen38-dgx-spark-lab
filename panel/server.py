@@ -637,21 +637,30 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path.startswith("/api/audit/"):
             if AUDIT_READER is None:
-                self._json({"enabled": False, "error": "Request capture is not configured"}, 503)
+                self._json(
+                    {"enabled": False, "error": "Request capture is not configured"},
+                    503,
+                )
                 return
             # All panel routes are protected by upstream Cloudflare Access.
             query = urllib.parse.parse_qs(parsed.query)
             try:
                 hours = min(168, max(1, int(query.get("hours", ["1"])[0])))
                 if parsed.path == "/api/audit/summary":
-                    result = AUDIT_READER.summary(hours, query.get("exclude_tests", ["0"])[0] == "1")
+                    result = AUDIT_READER.summary(
+                        hours, query.get("exclude_tests", ["0"])[0] == "1"
+                    )
                 elif parsed.path == "/api/audit/requests":
                     before = float(query["before"][0]) if "before" in query else None
                     if before is not None and not math.isfinite(before):
                         raise ValueError("Invalid cursor")
-                    result = AUDIT_READER.requests(hours, before,
-                        query.get("task", [""])[0], query.get("model", [""])[0],
-                        query.get("exclude_tests", ["0"])[0] == "1")
+                    result = AUDIT_READER.requests(
+                        hours,
+                        before,
+                        query.get("task", [""])[0],
+                        query.get("model", [""])[0],
+                        query.get("exclude_tests", ["0"])[0] == "1",
+                    )
                 elif parsed.path.startswith("/api/audit/requests/"):
                     result = AUDIT_READER.detail(parsed.path.rsplit("/", 1)[1])
                     if result is None:
@@ -664,7 +673,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "Invalid query"}, 400)
                 return
             except sqlite3.Error:
-                self._json({"enabled": False, "error": "Request capture temporarily unavailable"}, 503)
+                self._json(
+                    {
+                        "enabled": False,
+                        "error": "Request capture temporarily unavailable",
+                    },
+                    503,
+                )
                 return
             self._json(result)
             return
@@ -711,7 +726,9 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, content_type, body)
 
     def log_message(self, fmt: str, *args: Any) -> None:
-        if self.path not in {"/api/snapshot", "/healthz"} and not self.path.startswith("/api/audit/"):
+        if self.path not in {"/api/snapshot", "/healthz"} and not self.path.startswith(
+            "/api/audit/"
+        ):
             super().log_message(fmt, *args)
 
 

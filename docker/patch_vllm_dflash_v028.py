@@ -26,7 +26,9 @@ def main() -> None:
     args = parser.parse_args()
 
     dflash = args.site / "model_executor/models/qwen3_dflash.py"
-    if "decoder_layer_cls = DFlashQwen3DecoderLayer" not in dflash.read_text(encoding="utf-8"):
+    if "decoder_layer_cls = DFlashQwen3DecoderLayer" not in dflash.read_text(
+        encoding="utf-8"
+    ):
         raise SystemExit(f"{dflash}: expected upstream #53449 decoder_layer_cls")
 
     speculative = args.site / "config/speculative.py"
@@ -35,8 +37,9 @@ def main() -> None:
         "        factors.append(uses_aux_hidden_states)\n\n"
         "        if uses_aux_hidden_states and self.draft_model_config is not None:\n",
         "        factors.append(uses_aux_hidden_states)\n\n"
-        "        # Upstream PR #53292: parallel draft depth changes compiled graph shapes.\n"
-        "        if self.method in (\"dflash\", \"dspark\"):\n"
+        "        # Upstream PR #53292: parallel draft depth changes "
+        "compiled graph shapes.\n"
+        '        if self.method in ("dflash", "dspark"):\n'
         "            factors.append(self.num_speculative_tokens)\n\n"
         "        if uses_aux_hidden_states and self.draft_model_config is not None:\n",
     )

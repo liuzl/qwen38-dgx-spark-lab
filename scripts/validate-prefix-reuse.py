@@ -20,9 +20,15 @@ def counters(base: str) -> tuple[float, float]:
     text = urllib.request.urlopen(base + "/metrics", timeout=10).read().decode()
 
     def total(name: str) -> float:
-        return sum(float(line.split()[-1]) for line in text.splitlines() if line.startswith(name + "{"))
+        return sum(
+            float(line.split()[-1])
+            for line in text.splitlines()
+            if line.startswith(name + "{")
+        )
 
-    return total("vllm:prefix_cache_queries_total"), total("vllm:prefix_cache_hits_total")
+    return total("vllm:prefix_cache_queries_total"), total(
+        "vllm:prefix_cache_hits_total"
+    )
 
 
 def main() -> None:
@@ -36,13 +42,19 @@ def main() -> None:
         f"line {i}: the quick brown fox jumps over the lazy dog." for i in range(700)
     )
     body = json.dumps(
-        {"model": args.model, "messages": [{"role": "user", "content": prompt + "\nReply OK."}], "max_tokens": 4}
+        {
+            "model": args.model,
+            "messages": [{"role": "user", "content": prompt + "\nReply OK."}],
+            "max_tokens": 4,
+        }
     ).encode()
     rows = []
     for attempt in (1, 2):
         q0, h0 = counters(base)
         start = time.time()
-        request = urllib.request.Request(base + "/v1/chat/completions", body, {"content-type": "application/json"})
+        request = urllib.request.Request(
+            base + "/v1/chat/completions", body, {"content-type": "application/json"}
+        )
         response = json.load(urllib.request.urlopen(request, timeout=300))
         q1, h1 = counters(base)
         rows.append(
@@ -55,7 +67,12 @@ def main() -> None:
             }
         )
     ratio = rows[1]["hits"] / rows[1]["prompt_tokens"]
-    result = {"model": args.model, "rows": rows, "repeat_hit_ratio": round(ratio, 4), "passed": ratio >= args.min_ratio}
+    result = {
+        "model": args.model,
+        "rows": rows,
+        "repeat_hit_ratio": round(ratio, 4),
+        "passed": ratio >= args.min_ratio,
+    }
     print(json.dumps(result, indent=2))
     sys.exit(0 if result["passed"] else 1)
 
