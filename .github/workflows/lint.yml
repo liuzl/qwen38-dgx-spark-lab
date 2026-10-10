@@ -14,9 +14,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/ruff-action@v3
         with:
+          version: "0.16.6"
           args: check
       - uses: astral-sh/ruff-action@v3
         with:
+          version: "0.16.6"
           args: format --check
       - name: Compile Python
         run: python -m compileall -q scripts docker
