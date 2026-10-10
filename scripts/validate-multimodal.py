@@ -65,7 +65,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--image", required=True, type=Path)
-    parser.add_argument("--max-images", type=int, default=4, help="configured image count; the next count must be rejected")
+    parser.add_argument(
+        "--max-images",
+        type=int,
+        default=4,
+        help="configured image count; the next count must be rejected",
+    )
     parser.add_argument(
         "--models",
         nargs="+",
@@ -211,7 +216,10 @@ def main() -> None:
         raise RuntimeError(f"remote media URL was not rejected: status={status}")
     print(f"ok: remote media URL denied ({status})")
 
-    images = [{"type": "image_url", "image_url": {"url": image_url}} for _ in range(args.max_images + 1)]
+    images = [
+        {"type": "image_url", "image_url": {"url": image_url}}
+        for _ in range(args.max_images + 1)
+    ]
     status, _ = post(
         f"{base}{chat_path}",
         {
@@ -227,7 +235,9 @@ def main() -> None:
         bearer,
     )
     if status not in {400, 403, 422}:
-        raise RuntimeError(f"{args.max_images + 1}-image request was not rejected: status={status}")
+        raise RuntimeError(
+            f"{args.max_images + 1}-image request was not rejected: status={status}"
+        )
     print(f"ok: image-count limit enforced ({status})")
 
 
