@@ -260,3 +260,6 @@ retain their own licenses. See [NOTICE](NOTICE) and
 The isolated Flash-Next experiment build and qualification tools are documented in
 [docker/strata-runpod/README.md](docker/strata-runpod/README.md). No production serving
 profile is changed, and local fault-test success is not GPU qualification.
+
+The [bj-123 V100 pilot](deploy/strata-v100/README.md) uses a separate CUDA 12.3
+SM70 build and pinned original IQ3_S weights; see its evidence status before use.

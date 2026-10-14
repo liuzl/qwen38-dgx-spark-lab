@@ -1,0 +1,26 @@
+{
+  "repo": "ISTA-DASLab/Qwen3.8-Flash-Next-GSQ-RCO-GGUF",
+  "revision": "ed59f92082b1e93c0e96d60a8b11aab089b52f09",
+  "files": [
+    {
+      "rfilename": "IQ3_S/Qwen3.8-Flash-Next-GSQ-RCO-IQ3_S-00001-of-00002.gguf",
+      "blobId": "2969a78cc8593516280eb76fa192acf456e5e81a",
+      "size": 54817524224,
+      "lfs": {
+        "sha256": "4c1eb2ceb4915e1192f4f386021897bde56a97f40a0bb78bb86465e0f7d2aca3",
+        "size": 54817524224,
+        "pointerSize": 136
+      }
+    },
+    {
+      "rfilename": "IQ3_S/Qwen3.8-Flash-Next-GSQ-RCO-IQ3_S-00002-of-00002.gguf",
+      "blobId": "5b6ab49f5c8ac8c1ff7f3e9e9c79c7b2212660e6",
+      "size": 28800138432,
+      "lfs": {
+        "sha256": "316b46f3a2dbd68c900f43136ab9449f9dcc3725dfd8c794847c204bc161e113",
+        "size": 28800138432,
+        "pointerSize": 136
+      }
+    }
+  ]
+}
