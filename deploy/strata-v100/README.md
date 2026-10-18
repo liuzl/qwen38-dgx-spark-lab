@@ -57,6 +57,23 @@ Completion requires `evidence/model-verified.json` and `download.status=verified
 The unit is transient (not a boot-enabled service); if interrupted, restart the
 same script against the preserved aria2 files. Do not delete the partial weights.
 
+On 2026-10-15 the unit exited after repeated HTTP 403s: aria2 kept requesting an
+expired signed CDN redirect. Restarting the same unit re-resolves the pinned
+`resolve/` URLs and resumes from the `.aria2` state; both shards verified on
+2026-10-18.
+
+### Vision projector
+
+`download.sh` verifies only `files` in the manifest. The vision projector is a
+separate `projector` entry so text-only runs never depend on it. Copy
+`mmproj-download.aria2` to `EXPERIMENT_ROOT/evidence/` and run
+`bash download-mmproj.sh EXPERIMENT_ROOT`. It writes `evidence/mmproj.status` and,
+after the exact size and SHA256 match, `evidence/mmproj-verified.json`; it never
+touches the text weights or `download.status`. On bj-123 it ran as user unit
+`strata-v100-mmproj-download-20261018` (12-hour deadline, otherwise the same
+limits) and verified on 2026-10-18. Downloading the projector does not qualify
+vision; vision remains untested until it is loaded and scored separately.
+
 Once `build.sh` finishes, `verify-kernel.sh` builds and runs the upstream synthetic
 attention parity check on GPU 1. A passing kernel test is not model qualification.
 
