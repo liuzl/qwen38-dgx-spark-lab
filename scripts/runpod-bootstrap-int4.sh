@@ -13,6 +13,11 @@
 # The adapter for this checkpoint is the rank-1 adapter with lora_B scaled by 0.85
 # (adapter_model.safetensors sha256 7dc18d34...), not the NVFP4 one: at 1.0 it costs
 # 3.7 Global-MMLU-Lite points on INT4, at 0.85 1.2 points with refusals still removed.
+# Optional second adapter (serves qwen3.8-27b-cute; needs the first adapter's ARTIFACT_TOKEN):
+#   CUTE_ARTIFACT_URL  URL of the tar holding adapter-cute/ (same tf-artifacts Worker and token)
+#   CUTE_ADAPTER_TAR_SHA256 / CUTE_ADAPTER_SHA256  expected hashes (tar, adapter_model.safetensors)
+# It is an exact cat merge (rank 17) of wesjos/Qwen3.8-27B-CuteHuman-LoRA@edd19281 with the 0.85 adapter
+# above (sha256 f2119d8f...); serving it raises --max-loras to 2 and --max-lora-rank to 32.
 # Without ARTIFACT_TOKEN only the base alias is served. Listens on 127.0.0.1:18102.
 # Optional data-plane tunnel (tokenflow ADR-0009 §2), started once vLLM is healthy:
 #   TUNNEL_TOKEN       Cloudflare Tunnel token, e.g. "{{ RUNPOD_SECRET_tf_runpod_tunnel_token }}"
@@ -21,6 +26,8 @@
 #
 # 2026-10-12 measurements (A6000, oplog logs/changes/2026-10-12-runpod-qwen38-27b-int4*.md):
 # 131072 context, 16 images, KV 16 GiB = 209,715 tokens; code 1K single stream 126 tok/s.
+# 2026-10-29 with the cute adapter (A40, oplog logs/changes/2026-10-29-runpod-qwen38-int4-cutehuman-lora.md):
+# KV unchanged; 32-way saturation 208 tok/s on -cute vs 233 on the base.
 set -u
 W=/workspace
 mkdir -p $W/run $W/models $W/cache/flashinfer
@@ -47,7 +54,8 @@ ts weights-ready
 
 lora_args=()
 if [[ -n "${ARTIFACT_TOKEN:-}" ]]; then
-  python3 - <<'PY' || { ts adapter-failed; sleep infinity; }
+  fetch_adapter() {  # fetch_adapter <url> <tar sha256> <weights sha256> <dir under models/>
+  ARTIFACT_URL=$1 ADAPTER_TAR_SHA256=$2 ADAPTER_SHA256=$3 ADAPTER_DIR=$4 python3 - <<'PY' || { ts adapter-failed; sleep infinity; }
 import hashlib, os, tarfile, urllib.request
 req = urllib.request.Request(os.environ["ARTIFACT_URL"], headers={"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "tokenflow-bootstrap/1"})
 data = urllib.request.urlopen(req, timeout=300).read()
@@ -55,13 +63,20 @@ assert hashlib.sha256(data).hexdigest() == os.environ["ADAPTER_TAR_SHA256"], "ad
 open("/workspace/adapter.tar", "wb").write(data)
 with tarfile.open("/workspace/adapter.tar") as t:
     t.extractall("/workspace/models", filter="data")
-got = hashlib.sha256(open("/workspace/models/adapter/adapter_model.safetensors", "rb").read()).hexdigest()
+got = hashlib.sha256(open(f"/workspace/models/{os.environ['ADAPTER_DIR']}/adapter_model.safetensors", "rb").read()).hexdigest()
 assert got == os.environ["ADAPTER_SHA256"], "adapter weights hash mismatch"
 os.remove("/workspace/adapter.tar")
-print("adapter ready", got[:12], flush=True)
+print("adapter ready", os.environ["ADAPTER_DIR"], got[:12], flush=True)
 PY
+  }
+  fetch_adapter "$ARTIFACT_URL" "$ADAPTER_TAR_SHA256" "$ADAPTER_SHA256" adapter
   lora_args=(--enable-lora --max-loras 1 --max-lora-rank 1 --lora-dtype bfloat16
              --lora-modules qwen3.8-27b-uncensored=$W/models/adapter)
+  if [[ -n "${CUTE_ARTIFACT_URL:-}" ]]; then
+    fetch_adapter "$CUTE_ARTIFACT_URL" "$CUTE_ADAPTER_TAR_SHA256" "$CUTE_ADAPTER_SHA256" adapter-cute
+    lora_args=(--enable-lora --max-loras 2 --max-lora-rank 32 --lora-dtype bfloat16
+               --lora-modules qwen3.8-27b-uncensored=$W/models/adapter qwen3.8-27b-cute=$W/models/adapter-cute)
+  fi
   ts adapter-ready
 fi
 
