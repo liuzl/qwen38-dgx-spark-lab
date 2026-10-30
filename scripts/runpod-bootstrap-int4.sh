@@ -22,6 +22,13 @@
 # Optional data-plane tunnel (tokenflow ADR-0009 §2), started once vLLM is healthy:
 #   TUNNEL_TOKEN       Cloudflare Tunnel token, e.g. "{{ RUNPOD_SECRET_tf_runpod_tunnel_token }}"
 #   CLOUDFLARED_URL / CLOUDFLARED_SHA256  pinned static cloudflared binary and its hash
+# Optional compile cache (tokenflow docs/research/2026-10-29-node-cold-start.md): with vLLM's torch.compile cache
+# the engine is healthy in about 2 min instead of about 6. A volume that already holds it (a stopped pod started
+# again) uses its own; a new volume downloads it when one has been published for this exact setup:
+#   COMPILE_CACHE_BASE  tf-artifacts URL prefix, e.g. https://…/v1/artifacts/qwen38/compile-cache (ARTIFACT_TOKEN)
+# The key is a hash of the vLLM and torch versions, the GPU architecture and the serve arguments (not the
+# fingerprint); it is written to /workspace/cache/compile-cache-key for tokenflow tools/compile-cache-publish.sh,
+# which an operator runs after the first start of a new setup. Nodes only download, and check the sha256.
 # Progress goes to /workspace/timeline.log.
 #
 # 2026-10-12 measurements (A6000, oplog logs/changes/2026-10-12-runpod-qwen38-27b-int4*.md):
@@ -44,6 +51,60 @@ ts bootstrap-start
   /usr/sbin/sshd && ts sshd-up
 ) &
 
+# The serve arguments, decided by the env alone, so the compile cache key is known before anything downloads.
+lora_args=()
+if [[ -n "${ARTIFACT_TOKEN:-}" ]]; then
+  lora_args=(--enable-lora --max-loras 1 --max-lora-rank 1 --lora-dtype bfloat16
+             --lora-modules qwen3.8-27b-uncensored=$W/models/adapter)
+  [[ -n "${CUTE_ARTIFACT_URL:-}" ]] && lora_args=(--enable-lora --max-loras 2 --max-lora-rank 32 --lora-dtype bfloat16
+             --lora-modules qwen3.8-27b-uncensored=$W/models/adapter qwen3.8-27b-cute=$W/models/adapter-cute)
+fi
+serve_args=($W/models/RedHatAI-Qwen3.8-27B-INT4 --served-model-name qwen3.8-27b --host 127.0.0.1 --port 18102
+  --max-model-len 131072 --gpu-memory-utilization 0.95 --kv-cache-memory-bytes ${KV_BYTES:-17179869184}
+  --max-num-seqs 10 --max-num-batched-tokens 16384 --enable-prefix-caching --enable-chunked-prefill
+  --limit-mm-per-prompt '{"image":16,"video":0}' --mm-processor-kwargs '{"max_pixels":1048576}' --mm-processor-cache-gb 0
+  --allowed-media-domains media.invalid
+  --kv-cache-dtype bfloat16 --dtype bfloat16 --no-enable-flashinfer-autotune --trust-remote-code --reasoning-parser qwen3
+  --tool-call-parser qwen3_xml --enable-auto-tool-choice --default-chat-template-kwargs '{"enable_thinking":false}'
+  --enable-prompt-tokens-details --enable-force-include-usage
+  --speculative-config '{"method":"mtp","num_speculative_tokens":7}'
+  "${lora_args[@]}")
+export VLLM_MARLIN_USE_ATOMIC_ADD=1 VLLM_PREFIX_CACHE_RETENTION_INTERVAL=1648 VLLM_CACHE_ROOT=$W/cache/mtp-k7
+# Triton's kernel cache defaults to the container disk, which a stop wipes; the volume keeps it.
+export TRITON_CACHE_DIR=$W/cache/triton
+mkdir -p $TRITON_CACHE_DIR
+CC_KEY=$(printf '%s\n' "$(python3 -c 'import importlib.metadata as m; print(m.version("vllm"), m.version("torch"))')" \
+  "$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1)" "${serve_args[@]}" | sha256sum | cut -c1-16)
+echo "$CC_KEY" > $W/cache/compile-cache-key
+ts "compile-cache-key $CC_KEY"
+cc_fetch=""
+if [[ -n "${COMPILE_CACHE_BASE:-}" && -n "${ARTIFACT_TOKEN:-}" && ! -d $VLLM_CACHE_ROOT/torch_compile_cache ]]; then
+  ( CC_URL="$COMPILE_CACHE_BASE/$CC_KEY.tar.gz" python3 - <<'PY' && ts compile-cache-seeded || ts compile-cache-miss
+import hashlib, os, tarfile, urllib.error, urllib.request
+h = {"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "tokenflow-bootstrap/1"}
+url = os.environ["CC_URL"]
+try:
+    want = urllib.request.urlopen(urllib.request.Request(url + ".sha256", headers=h), timeout=30).read().decode().split()[0]
+except urllib.error.HTTPError as e:
+    raise SystemExit(f"no compile cache published for this setup ({e.code})")
+digest, path = hashlib.sha256(), "/workspace/compile-cache.tar.gz"
+with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=600) as r, open(path, "wb") as f:
+    for block in iter(lambda: r.read(1 << 20), b""):
+        digest.update(block)
+        f.write(block)
+if digest.hexdigest() != want:
+    os.remove(path)
+    raise SystemExit("compile cache hash mismatch")
+os.makedirs(os.environ["VLLM_CACHE_ROOT"], exist_ok=True)
+with tarfile.open(path) as t:
+    t.extractall(os.environ["VLLM_CACHE_ROOT"], filter="data")
+os.remove(path)
+print("compile cache ready", want[:12], flush=True)
+PY
+  ) &
+  cc_fetch=$!
+fi
+
 python3 - <<'PY'
 from huggingface_hub import snapshot_download
 for repo, rev, d in [("RedHatAI/Qwen3.8-27B-INT4", "91bd022d5b49442a868bc35008f6c21e1860edfa", "RedHatAI-Qwen3.8-27B-INT4")]:
@@ -52,7 +113,6 @@ for repo, rev, d in [("RedHatAI/Qwen3.8-27B-INT4", "91bd022d5b49442a868bc35008f6
 PY
 ts weights-ready
 
-lora_args=()
 if [[ -n "${ARTIFACT_TOKEN:-}" ]]; then
   fetch_adapter() {  # fetch_adapter <url> <tar sha256> <weights sha256> <dir under models/>
   ARTIFACT_URL=$1 ADAPTER_TAR_SHA256=$2 ADAPTER_SHA256=$3 ADAPTER_DIR=$4 python3 - <<'PY' || { ts adapter-failed; sleep infinity; }
@@ -70,28 +130,15 @@ print("adapter ready", os.environ["ADAPTER_DIR"], got[:12], flush=True)
 PY
   }
   fetch_adapter "$ARTIFACT_URL" "$ADAPTER_TAR_SHA256" "$ADAPTER_SHA256" adapter
-  lora_args=(--enable-lora --max-loras 1 --max-lora-rank 1 --lora-dtype bfloat16
-             --lora-modules qwen3.8-27b-uncensored=$W/models/adapter)
   if [[ -n "${CUTE_ARTIFACT_URL:-}" ]]; then
     fetch_adapter "$CUTE_ARTIFACT_URL" "$CUTE_ADAPTER_TAR_SHA256" "$CUTE_ADAPTER_SHA256" adapter-cute
-    lora_args=(--enable-lora --max-loras 2 --max-lora-rank 32 --lora-dtype bfloat16
-               --lora-modules qwen3.8-27b-uncensored=$W/models/adapter qwen3.8-27b-cute=$W/models/adapter-cute)
   fi
   ts adapter-ready
 fi
 
 ln -sfn $W/cache/flashinfer /root/.cache/flashinfer
-export VLLM_MARLIN_USE_ATOMIC_ADD=1 VLLM_PREFIX_CACHE_RETENTION_INTERVAL=1648 VLLM_CACHE_ROOT=$W/cache/mtp-k7
-nohup vllm serve $W/models/RedHatAI-Qwen3.8-27B-INT4 --served-model-name qwen3.8-27b --host 127.0.0.1 --port 18102 \
-  --max-model-len 131072 --gpu-memory-utilization 0.95 --kv-cache-memory-bytes ${KV_BYTES:-17179869184} \
-  --max-num-seqs 10 --max-num-batched-tokens 16384 --enable-prefix-caching --enable-chunked-prefill \
-  --limit-mm-per-prompt '{"image":16,"video":0}' --mm-processor-kwargs '{"max_pixels":1048576}' --mm-processor-cache-gb 0 \
-  --allowed-media-domains media.invalid \
-  --kv-cache-dtype bfloat16 --dtype bfloat16 --no-enable-flashinfer-autotune --trust-remote-code --reasoning-parser qwen3 \
-  --tool-call-parser qwen3_xml --enable-auto-tool-choice --default-chat-template-kwargs '{"enable_thinking":false}' \
-  --enable-prompt-tokens-details --enable-force-include-usage --fingerprint-mode custom --fingerprint-value "${FINGERPRINT_VALUE}" \
-  --speculative-config '{"method":"mtp","num_speculative_tokens":7}' \
-  "${lora_args[@]}" \
+[[ -n "$cc_fetch" ]] && wait "$cc_fetch"
+nohup vllm serve "${serve_args[@]}" --fingerprint-mode custom --fingerprint-value "${FINGERPRINT_VALUE}" \
   > $W/run/vllm.log 2>&1 &
 VLLM_PID=$!
 ts vllm-started
