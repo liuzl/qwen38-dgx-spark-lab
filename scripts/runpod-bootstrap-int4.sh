@@ -29,17 +29,21 @@
 # The key is a hash of the vLLM and torch versions, the GPU architecture and the serve arguments (not the
 # fingerprint); it is written to /workspace/cache/compile-cache-key for tokenflow tools/compile-cache-publish.sh,
 # which an operator runs after the first start of a new setup. Nodes only download, and check the sha256.
-# Progress goes to /workspace/timeline.log.
+# DATA_ROOT defaults to /workspace; RUNTIME_ROOT defaults to /var/log/tokenflow.
+# Logs and runtime caches use local disk; use DATA_ROOT=/opt/tokenflow/data for volume-free nodes.
 #
 # 2026-10-12 measurements (A6000, oplog logs/changes/2026-10-12-runpod-qwen38-27b-int4*.md):
 # 131072 context, 16 images, KV 16 GiB = 209,715 tokens; code 1K single stream 126 tok/s.
 # 2026-10-29 with the cute adapter (A40, oplog logs/changes/2026-10-29-runpod-qwen38-int4-cutehuman-lora.md):
 # KV unchanged; 32-way saturation 208 tok/s on -cute vs 233 on the base.
 set -u
-W=/workspace
-mkdir -p $W/run $W/models $W/cache/flashinfer
-exec > >(tee -a $W/bootstrap.log) 2>&1
-ts() { echo "[$(date -u +%FT%TZ)] $*" | tee -a $W/timeline.log; }
+export DATA_ROOT=${DATA_ROOT:-/workspace}
+W=$DATA_ROOT
+export RUNTIME_ROOT=${RUNTIME_ROOT:-/var/log/tokenflow}
+R=$RUNTIME_ROOT
+mkdir -p "$R/run" "$R/cache/flashinfer"
+exec > >(tee -a "$R/bootstrap.log") 2>&1
+ts() { echo "[$(date -u +%FT%TZ)] $*" | tee -a "$R/timeline.log"; }
 ts bootstrap-start
 
 # sshd in the background so weights start downloading immediately.
@@ -51,6 +55,7 @@ ts bootstrap-start
   /usr/sbin/sshd && ts sshd-up
 ) &
 
+mkdir -p "$W/models"
 # The serve arguments, decided by the env alone, so the compile cache key is known before anything downloads.
 lora_args=()
 if [[ -n "${ARTIFACT_TOKEN:-}" ]]; then
@@ -69,13 +74,13 @@ serve_args=($W/models/RedHatAI-Qwen3.8-27B-INT4 --served-model-name qwen3.8-27b 
   --enable-prompt-tokens-details --enable-force-include-usage
   --speculative-config '{"method":"mtp","num_speculative_tokens":7}'
   "${lora_args[@]}")
-export VLLM_MARLIN_USE_ATOMIC_ADD=1 VLLM_PREFIX_CACHE_RETENTION_INTERVAL=1648 VLLM_CACHE_ROOT=$W/cache/mtp-k7
-# Triton's kernel cache defaults to the container disk, which a stop wipes; the volume keeps it.
-export TRITON_CACHE_DIR=$W/cache/triton
+export VLLM_MARLIN_USE_ATOMIC_ADD=1 VLLM_PREFIX_CACHE_RETENTION_INTERVAL=1648 VLLM_CACHE_ROOT=$R/cache/mtp-k7
+# Keep Triton cache local as well; optionally seed it from published artifacts.
+export TRITON_CACHE_DIR=$R/cache/triton
 mkdir -p $TRITON_CACHE_DIR
 CC_KEY=$(printf '%s\n' "$(python3 -c 'import importlib.metadata as m; print(m.version("vllm"), m.version("torch"))')" \
   "$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1)" "${serve_args[@]}" | sha256sum | cut -c1-16)
-echo "$CC_KEY" > $W/cache/compile-cache-key
+echo "$CC_KEY" > $R/cache/compile-cache-key
 ts "compile-cache-key $CC_KEY"
 cc_fetch=""
 if [[ -n "${COMPILE_CACHE_BASE:-}" && -n "${ARTIFACT_TOKEN:-}" && ! -d $VLLM_CACHE_ROOT/torch_compile_cache ]]; then
@@ -87,7 +92,7 @@ try:
     want = urllib.request.urlopen(urllib.request.Request(url + ".sha256", headers=h), timeout=30).read().decode().split()[0]
 except urllib.error.HTTPError as e:
     raise SystemExit(f"no compile cache published for this setup ({e.code})")
-digest, path = hashlib.sha256(), "/workspace/compile-cache.tar.gz"
+digest, path = hashlib.sha256(), os.path.join(os.environ["RUNTIME_ROOT"], "compile-cache.tar.gz")
 with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=600) as r, open(path, "wb") as f:
     for block in iter(lambda: r.read(1 << 20), b""):
         digest.update(block)
@@ -106,9 +111,10 @@ PY
 fi
 
 python3 - <<'PY'
+import os
 from huggingface_hub import snapshot_download
 for repo, rev, d in [("RedHatAI/Qwen3.8-27B-INT4", "91bd022d5b49442a868bc35008f6c21e1860edfa", "RedHatAI-Qwen3.8-27B-INT4")]:
-    snapshot_download(repo, revision=rev, local_dir=f"/workspace/models/{d}", max_workers=16)
+    snapshot_download(repo, revision=rev, local_dir=os.path.join(os.environ["DATA_ROOT"], "models", d), max_workers=16)
     print("downloaded", repo, rev, flush=True)
 PY
 ts weights-ready
@@ -120,12 +126,12 @@ import hashlib, os, tarfile, urllib.request
 req = urllib.request.Request(os.environ["ARTIFACT_URL"], headers={"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "tokenflow-bootstrap/1"})
 data = urllib.request.urlopen(req, timeout=300).read()
 assert hashlib.sha256(data).hexdigest() == os.environ["ADAPTER_TAR_SHA256"], "adapter tar hash mismatch"
-open("/workspace/adapter.tar", "wb").write(data)
-with tarfile.open("/workspace/adapter.tar") as t:
-    t.extractall("/workspace/models", filter="data")
-got = hashlib.sha256(open(f"/workspace/models/{os.environ['ADAPTER_DIR']}/adapter_model.safetensors", "rb").read()).hexdigest()
+open(os.path.join(os.environ["DATA_ROOT"], "adapter.tar"), "wb").write(data)
+with tarfile.open(os.path.join(os.environ["DATA_ROOT"], "adapter.tar")) as t:
+    t.extractall(os.path.join(os.environ["DATA_ROOT"], "models"), filter="data")
+got = hashlib.sha256(open(os.path.join(os.environ["DATA_ROOT"], "models", os.environ["ADAPTER_DIR"], "adapter_model.safetensors"), "rb").read()).hexdigest()
 assert got == os.environ["ADAPTER_SHA256"], "adapter weights hash mismatch"
-os.remove("/workspace/adapter.tar")
+os.remove(os.path.join(os.environ["DATA_ROOT"], "adapter.tar"))
 print("adapter ready", os.environ["ADAPTER_DIR"], got[:12], flush=True)
 PY
   }
@@ -136,10 +142,10 @@ PY
   ts adapter-ready
 fi
 
-ln -sfn $W/cache/flashinfer /root/.cache/flashinfer
+ln -sfn $R/cache/flashinfer /root/.cache/flashinfer
 [[ -n "$cc_fetch" ]] && wait "$cc_fetch"
 nohup vllm serve "${serve_args[@]}" --fingerprint-mode custom --fingerprint-value "${FINGERPRINT_VALUE}" \
-  > $W/run/vllm.log 2>&1 &
+  > $R/run/vllm.log 2>&1 &
 VLLM_PID=$!
 ts vllm-started
 until python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18102/health', timeout=3)" 2>/dev/null; do
@@ -149,11 +155,11 @@ done
 ts vllm-healthy
 
 if [[ -n "${TUNNEL_TOKEN:-}" ]]; then
-  python3 -c "import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])" "$CLOUDFLARED_URL" $W/run/cloudflared
-  echo "${CLOUDFLARED_SHA256}  $W/run/cloudflared" | sha256sum -c - || { ts cloudflared-hash-mismatch; sleep infinity; }
-  chmod 700 $W/run/cloudflared
-  ( umask 077; printf '%s' "$TUNNEL_TOKEN" > $W/run/tunnel-token )
-  nohup $W/run/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run --token-file $W/run/tunnel-token > $W/run/cloudflared.log 2>&1 &
+  python3 -c "import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])" "$CLOUDFLARED_URL" $R/run/cloudflared
+  echo "${CLOUDFLARED_SHA256}  $R/run/cloudflared" | sha256sum -c - || { ts cloudflared-hash-mismatch; sleep infinity; }
+  chmod 700 $R/run/cloudflared
+  ( umask 077; printf '%s' "$TUNNEL_TOKEN" > $R/run/tunnel-token )
+  nohup $R/run/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run --token-file $R/run/tunnel-token > $R/run/cloudflared.log 2>&1 &
   ts tunnel-started
 fi
 sleep infinity
