@@ -13,17 +13,21 @@
 # Optional data-plane tunnel (tokenflow ADR-0009 §2), started once vLLM is healthy:
 #   TUNNEL_TOKEN       Cloudflare Tunnel token, e.g. "{{ RUNPOD_SECRET_tf_runpod_tunnel_token }}"
 #   CLOUDFLARED_URL / CLOUDFLARED_SHA256  pinned static cloudflared binary and its hash
-# Progress goes to /workspace/timeline.log.
+# DATA_ROOT defaults to /workspace; RUNTIME_ROOT defaults to /var/log/tokenflow.
+# Logs and runtime caches stay on the local container disk. For a volume-free trial,
+# set DATA_ROOT=/opt/tokenflow/data and provision enough container disk space.
 #
 # 2026-09-29: switched from DFlash2 to the checkpoint's own MTP head (K7). On
 # RTX PRO 6000 MIG 48GB, DFlash2 produced runs of '!' in 3-9 of 72 long-prompt
 # stress requests; MTP produced none, at 10-15% lower single-stream speed and
 # 19% more KV. No DFlash patch or draft download is needed any more.
 set -u
-W=/workspace
-mkdir -p $W/run $W/models $W/cache/flashinfer
-exec > >(tee -a $W/bootstrap.log) 2>&1
-ts() { echo "[$(date -u +%FT%TZ)] $*" | tee -a $W/timeline.log; }
+export DATA_ROOT=${DATA_ROOT:-/workspace}
+W=$DATA_ROOT
+R=${RUNTIME_ROOT:-/var/log/tokenflow}
+mkdir -p "$R/run" "$R/cache/flashinfer"
+exec > >(tee -a "$R/bootstrap.log") 2>&1
+ts() { echo "[$(date -u +%FT%TZ)] $*" | tee -a "$R/timeline.log"; }
 ts bootstrap-start
 
 # sshd in the background so weights start downloading immediately.
@@ -35,10 +39,12 @@ ts bootstrap-start
   /usr/sbin/sshd && ts sshd-up
 ) &
 
+mkdir -p "$W/models"
 python3 - <<'PY'
+import os
 from huggingface_hub import snapshot_download
 for repo, rev, d in [("RadixArk/Qwen3.8-27B-NVFP4", "319f741cce68d7914884900c138a1fbb70a42f30", "RadixArk-Qwen3.8-27B-NVFP4")]:
-    snapshot_download(repo, revision=rev, local_dir=f"/workspace/models/{d}", max_workers=16)
+    snapshot_download(repo, revision=rev, local_dir=os.path.join(os.environ["DATA_ROOT"], "models", d), max_workers=16)
     print("downloaded", repo, rev, flush=True)
 PY
 ts weights-ready
@@ -50,12 +56,12 @@ import hashlib, os, tarfile, urllib.request
 req = urllib.request.Request(os.environ["ARTIFACT_URL"], headers={"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "tokenflow-bootstrap/1"})
 data = urllib.request.urlopen(req, timeout=300).read()
 assert hashlib.sha256(data).hexdigest() == os.environ["ADAPTER_TAR_SHA256"], "adapter tar hash mismatch"
-open("/workspace/adapter.tar", "wb").write(data)
-with tarfile.open("/workspace/adapter.tar") as t:
-    t.extractall("/workspace/models", filter="data")
-got = hashlib.sha256(open("/workspace/models/adapter/adapter_model.safetensors", "rb").read()).hexdigest()
+open(os.path.join(os.environ["DATA_ROOT"], "adapter.tar"), "wb").write(data)
+with tarfile.open(os.path.join(os.environ["DATA_ROOT"], "adapter.tar")) as t:
+    t.extractall(os.path.join(os.environ["DATA_ROOT"], "models"), filter="data")
+got = hashlib.sha256(open(os.path.join(os.environ["DATA_ROOT"], "models/adapter/adapter_model.safetensors"), "rb").read()).hexdigest()
 assert got == os.environ["ADAPTER_SHA256"], "adapter weights hash mismatch"
-os.remove("/workspace/adapter.tar")
+os.remove(os.path.join(os.environ["DATA_ROOT"], "adapter.tar"))
 print("adapter ready", got[:12], flush=True)
 PY
   lora_args=(--enable-lora --max-loras 1 --max-lora-rank 1 --lora-dtype bfloat16
@@ -63,17 +69,19 @@ PY
   ts adapter-ready
 fi
 
-ln -sfn $W/cache/flashinfer /root/.cache/flashinfer
-export VLLM_MARLIN_USE_ATOMIC_ADD=1 VLLM_PREFIX_CACHE_RETENTION_INTERVAL=1648 VLLM_CACHE_ROOT=$W/cache/mtp-k7
+ln -sfn $R/cache/flashinfer /root/.cache/flashinfer
+export VLLM_MARLIN_USE_ATOMIC_ADD=1 VLLM_PREFIX_CACHE_RETENTION_INTERVAL=1648 VLLM_CACHE_ROOT=$R/cache/mtp-k7
 nohup vllm serve $W/models/RadixArk-Qwen3.8-27B-NVFP4 --served-model-name qwen3.8-27b --host 127.0.0.1 --port 18102 \
   --max-model-len 131072 --gpu-memory-utilization 0.95 --kv-cache-memory-bytes ${KV_BYTES:-12884901888} \
-  --max-num-seqs 10 --max-num-batched-tokens 16384 --enable-prefix-caching --enable-chunked-prefill \
+  --max-num-seqs ${MAX_SEQS:-10} --max-num-batched-tokens 16384 --enable-prefix-caching --enable-chunked-prefill \
+  --limit-mm-per-prompt '{"image":16,"video":0}' --mm-processor-kwargs '{"max_pixels":1048576}' --mm-processor-cache-gb 0 \
+  --allowed-media-domains media.invalid \
   --kv-cache-dtype fp8_e4m3 --no-enable-flashinfer-autotune --trust-remote-code --reasoning-parser qwen3 \
   --tool-call-parser qwen3_xml --enable-auto-tool-choice --default-chat-template-kwargs '{"enable_thinking":false}' \
-  --enable-prompt-tokens-details --fingerprint-mode custom --fingerprint-value "${FINGERPRINT_VALUE}" \
+  --enable-prompt-tokens-details --enable-force-include-usage --fingerprint-mode custom --fingerprint-value "${FINGERPRINT_VALUE}" \
   --speculative-config '{"method":"mtp","num_speculative_tokens":7}' \
   "${lora_args[@]}" \
-  > $W/run/vllm.log 2>&1 &
+  > $R/run/vllm.log 2>&1 &
 VLLM_PID=$!
 ts vllm-started
 until python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18102/health', timeout=3)" 2>/dev/null; do
@@ -83,11 +91,11 @@ done
 ts vllm-healthy
 
 if [[ -n "${TUNNEL_TOKEN:-}" ]]; then
-  python3 -c "import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])" "$CLOUDFLARED_URL" $W/run/cloudflared
-  echo "${CLOUDFLARED_SHA256}  $W/run/cloudflared" | sha256sum -c - || { ts cloudflared-hash-mismatch; sleep infinity; }
-  chmod 700 $W/run/cloudflared
-  ( umask 077; printf '%s' "$TUNNEL_TOKEN" > $W/run/tunnel-token )
-  nohup $W/run/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run --token-file $W/run/tunnel-token > $W/run/cloudflared.log 2>&1 &
+  python3 -c "import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])" "$CLOUDFLARED_URL" $R/run/cloudflared
+  echo "${CLOUDFLARED_SHA256}  $R/run/cloudflared" | sha256sum -c - || { ts cloudflared-hash-mismatch; sleep infinity; }
+  chmod 700 $R/run/cloudflared
+  ( umask 077; printf '%s' "$TUNNEL_TOKEN" > $R/run/tunnel-token )
+  nohup $R/run/cloudflared tunnel --no-autoupdate --metrics 127.0.0.1:20241 run --token-file $R/run/tunnel-token > $R/run/cloudflared.log 2>&1 &
   ts tunnel-started
 fi
 sleep infinity
