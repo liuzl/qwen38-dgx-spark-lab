@@ -7,39 +7,33 @@
 #   FINGERPRINT_VALUE  deployment ID returned as system_fingerprint
 # Optional: KV_BYTES (default 16 GiB; bf16 KV, since Ampere has no FP8 KV).
 # Optional adapter (serves qwen3.8-27b-uncensored next to the base alias):
-#   ARTIFACT_URL       URL of the adapter tar (tokenflow tf-artifacts Worker)
-#   ARTIFACT_TOKEN     bearer token, e.g. "{{ RUNPOD_SECRET_tf_artifacts_token }}"
+#   ARTIFACT_URL       URL of the adapter tar (authenticated artifact endpoint)
+#   ARTIFACT_TOKEN     bearer token supplied through a deployment secret
 #   ADAPTER_TAR_SHA256 / ADAPTER_SHA256  expected hashes (tar, adapter_model.safetensors)
 # The adapter for this checkpoint is the rank-1 adapter with lora_B scaled by 0.85
 # (adapter_model.safetensors sha256 7dc18d34...), not the NVFP4 one: at 1.0 it costs
 # 3.7 Global-MMLU-Lite points on INT4, at 0.85 1.2 points with refusals still removed.
 # Optional second adapter (serves qwen3.8-27b-cute; needs the first adapter's ARTIFACT_TOKEN):
-#   CUTE_ARTIFACT_URL  URL of the tar holding adapter-cute/ (same tf-artifacts Worker and token)
+#   CUTE_ARTIFACT_URL  URL of the tar holding adapter-cute/ (same artifact endpoint and token)
 #   CUTE_ADAPTER_TAR_SHA256 / CUTE_ADAPTER_SHA256  expected hashes (tar, adapter_model.safetensors)
 # It is an exact cat merge (rank 17) of wesjos/Qwen3.8-27B-CuteHuman-LoRA@edd19281 with the 0.85 adapter
 # above (sha256 f2119d8f...); serving it raises --max-loras to 2 and --max-lora-rank to 32.
 # Without ARTIFACT_TOKEN only the base alias is served. Listens on 127.0.0.1:18102.
-# Optional data-plane tunnel (tokenflow ADR-0009 §2), started once vLLM is healthy:
-#   TUNNEL_TOKEN       Cloudflare Tunnel token, e.g. "{{ RUNPOD_SECRET_tf_runpod_tunnel_token }}"
+# Optional data-plane tunnel, started once vLLM is healthy:
+#   TUNNEL_TOKEN       Cloudflare Tunnel token supplied through a deployment secret
 #   CLOUDFLARED_URL / CLOUDFLARED_SHA256  pinned static cloudflared binary and its hash
-# Optional compile cache (tokenflow docs/research/2026-10-29-node-cold-start.md): with vLLM's torch.compile cache
-# the engine is healthy in about 2 min instead of about 6. A volume that already holds it (a stopped pod started
-# again) uses its own; a new volume downloads it when one has been published for this exact setup:
-#   COMPILE_CACHE_BASE  tf-artifacts URL prefix, e.g. https://…/v1/artifacts/qwen38/compile-cache (ARTIFACT_TOKEN)
-# The key is a hash of the vLLM and torch versions, the GPU architecture and the serve arguments (not the
-# fingerprint); it is written to /workspace/cache/compile-cache-key for tokenflow tools/compile-cache-publish.sh,
-# which an operator runs after the first start of a new setup. Nodes only download, and check the sha256.
-# DATA_ROOT defaults to /workspace; RUNTIME_ROOT defaults to /var/log/tokenflow.
-# Logs and runtime caches use local disk; use DATA_ROOT=/opt/tokenflow/data for volume-free nodes.
+# Optional compile cache: download a published cache for this exact runtime and GPU setup.
+#   COMPILE_CACHE_BASE  authenticated artifact URL prefix (uses ARTIFACT_TOKEN)
+# The key hashes the vLLM/torch versions, GPU architecture and serve arguments.
+# It is written to $RUNTIME_ROOT/cache/compile-cache-key. Nodes only download caches
+# and verify their SHA-256; publishing is a separate operator action.
+# DATA_ROOT defaults to /workspace; RUNTIME_ROOT defaults to /var/log/model-serving.
+# Logs and runtime caches use local disk; use DATA_ROOT=/opt/model-data for volume-free nodes.
 #
-# 2026-10-12 measurements (A6000, oplog logs/changes/2026-10-12-runpod-qwen38-27b-int4*.md):
-# 131072 context, 16 images, KV 16 GiB = 209,715 tokens; code 1K single stream 126 tok/s.
-# 2026-10-29 with the cute adapter (A40, oplog logs/changes/2026-10-29-runpod-qwen38-int4-cutehuman-lora.md):
-# KV unchanged; 32-way saturation 208 tok/s on -cute vs 233 on the base.
 set -u
 export DATA_ROOT=${DATA_ROOT:-/workspace}
 W=$DATA_ROOT
-export RUNTIME_ROOT=${RUNTIME_ROOT:-/var/log/tokenflow}
+export RUNTIME_ROOT=${RUNTIME_ROOT:-/var/log/model-serving}
 R=$RUNTIME_ROOT
 mkdir -p "$R/run" "$R/cache/flashinfer"
 exec > >(tee -a "$R/bootstrap.log") 2>&1
@@ -86,7 +80,7 @@ cc_fetch=""
 if [[ -n "${COMPILE_CACHE_BASE:-}" && -n "${ARTIFACT_TOKEN:-}" && ! -d $VLLM_CACHE_ROOT/torch_compile_cache ]]; then
   ( CC_URL="$COMPILE_CACHE_BASE/$CC_KEY.tar.gz" python3 - <<'PY' && ts compile-cache-seeded || ts compile-cache-miss
 import hashlib, os, tarfile, urllib.error, urllib.request
-h = {"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "tokenflow-bootstrap/1"}
+h = {"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "model-bootstrap/1"}
 url = os.environ["CC_URL"]
 try:
     want = urllib.request.urlopen(urllib.request.Request(url + ".sha256", headers=h), timeout=30).read().decode().split()[0]
@@ -123,7 +117,7 @@ if [[ -n "${ARTIFACT_TOKEN:-}" ]]; then
   fetch_adapter() {  # fetch_adapter <url> <tar sha256> <weights sha256> <dir under models/>
   ARTIFACT_URL=$1 ADAPTER_TAR_SHA256=$2 ADAPTER_SHA256=$3 ADAPTER_DIR=$4 python3 - <<'PY' || { ts adapter-failed; sleep infinity; }
 import hashlib, os, tarfile, urllib.request
-req = urllib.request.Request(os.environ["ARTIFACT_URL"], headers={"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "tokenflow-bootstrap/1"})
+req = urllib.request.Request(os.environ["ARTIFACT_URL"], headers={"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "model-bootstrap/1"})
 data = urllib.request.urlopen(req, timeout=300).read()
 assert hashlib.sha256(data).hexdigest() == os.environ["ADAPTER_TAR_SHA256"], "adapter tar hash mismatch"
 open(os.path.join(os.environ["DATA_ROOT"], "adapter.tar"), "wb").write(data)

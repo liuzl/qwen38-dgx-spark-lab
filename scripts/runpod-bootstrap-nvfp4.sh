@@ -6,16 +6,16 @@
 #   FINGERPRINT_VALUE  deployment ID returned as system_fingerprint
 # Optional: KV_BYTES (default 12 GiB, the MIG 48GB setting).
 # Optional adapter (serves qwen3.8-27b-uncensored next to the base alias):
-#   ARTIFACT_URL       URL of the adapter tar (tokenflow tf-artifacts Worker)
-#   ARTIFACT_TOKEN     bearer token, e.g. "{{ RUNPOD_SECRET_tf_artifacts_token }}"
+#   ARTIFACT_URL       URL of the adapter tar (authenticated artifact endpoint)
+#   ARTIFACT_TOKEN     bearer token supplied through a deployment secret
 #   ADAPTER_TAR_SHA256 / ADAPTER_SHA256  expected hashes (tar, adapter_model.safetensors)
 # Without ARTIFACT_TOKEN only the base alias is served. Listens on 127.0.0.1:18102.
-# Optional data-plane tunnel (tokenflow ADR-0009 §2), started once vLLM is healthy:
-#   TUNNEL_TOKEN       Cloudflare Tunnel token, e.g. "{{ RUNPOD_SECRET_tf_runpod_tunnel_token }}"
+# Optional data-plane tunnel, started once vLLM is healthy:
+#   TUNNEL_TOKEN       Cloudflare Tunnel token supplied through a deployment secret
 #   CLOUDFLARED_URL / CLOUDFLARED_SHA256  pinned static cloudflared binary and its hash
-# DATA_ROOT defaults to /workspace; RUNTIME_ROOT defaults to /var/log/tokenflow.
+# DATA_ROOT defaults to /workspace; RUNTIME_ROOT defaults to /var/log/model-serving.
 # Logs and runtime caches stay on the local container disk. For a volume-free trial,
-# set DATA_ROOT=/opt/tokenflow/data and provision enough container disk space.
+# set DATA_ROOT=/opt/model-data and provision enough container disk space.
 #
 # 2026-09-29: switched from DFlash2 to the checkpoint's own MTP head (K7). On
 # RTX PRO 6000 MIG 48GB, DFlash2 produced runs of '!' in 3-9 of 72 long-prompt
@@ -24,7 +24,7 @@
 set -u
 export DATA_ROOT=${DATA_ROOT:-/workspace}
 W=$DATA_ROOT
-R=${RUNTIME_ROOT:-/var/log/tokenflow}
+R=${RUNTIME_ROOT:-/var/log/model-serving}
 mkdir -p "$R/run" "$R/cache/flashinfer"
 exec > >(tee -a "$R/bootstrap.log") 2>&1
 ts() { echo "[$(date -u +%FT%TZ)] $*" | tee -a "$R/timeline.log"; }
@@ -53,7 +53,7 @@ lora_args=()
 if [[ -n "${ARTIFACT_TOKEN:-}" ]]; then
   python3 - <<'PY' || { ts adapter-failed; sleep infinity; }
 import hashlib, os, tarfile, urllib.request
-req = urllib.request.Request(os.environ["ARTIFACT_URL"], headers={"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "tokenflow-bootstrap/1"})
+req = urllib.request.Request(os.environ["ARTIFACT_URL"], headers={"Authorization": "Bearer " + os.environ["ARTIFACT_TOKEN"], "User-Agent": "model-bootstrap/1"})
 data = urllib.request.urlopen(req, timeout=300).read()
 assert hashlib.sha256(data).hexdigest() == os.environ["ADAPTER_TAR_SHA256"], "adapter tar hash mismatch"
 open(os.path.join(os.environ["DATA_ROOT"], "adapter.tar"), "wb").write(data)
